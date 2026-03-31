@@ -1,3 +1,49 @@
+# Claude Code
 .claude/settings.local.json
 .claude/agent-memory-local/
+
+# Build
+build/
+cmake-build-*/
+out/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Compiled
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Qt
+moc_*
+qrc_*
+ui_*
+*.qmlc
+*.jsc
+
+# Generated proto
+*.pb.h
+*.pb.cc
+*.grpc.pb.h
+*.grpc.pb.cc
+
+# Dependencies (if using vcpkg locally)
+vcpkg_installed/
+
+# Logs
+*.log
+
+# Sandbox
 sandbox/

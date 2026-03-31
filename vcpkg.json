@@ -1,0 +1,11 @@
+{
+  "name": "medical-injector",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "grpc",
+    "protobuf",
+    "spdlog",
+    "nlohmann-json",
+    "gtest"
+  ]
+}
