@@ -20,6 +20,27 @@ Note: On Windows, commands must be run from a VS Developer Shell (`Launch-VsDevS
 
 Two-process, 7-layer backend architecture. See `spec/` for full details.
 
+### Backend Layers (implemented so far)
+
+1. **HAL (Hardware Abstraction Layer)** — `backend/src/hal/`
+   - `IHalInterface` — pure virtual interface for all hardware access
+   - `SimulatedHal` — implements IHalInterface with physics models
+   - Models: `MotorModel` (first-order lag), `PressureModel` (linear), `ValveModel` (binary), `SyringeModel` (volume tracking), `AirDetectorModel` (atomic bool)
+   - Thread-safe: `std::mutex` for state, `std::atomic<bool>` for air detector
+
+2. **Config** — `backend/src/config/`
+   - `Config` — 7-section JSON configuration with defaults and validation
+   - Sections: server, control, pid, safety, hal, syringe, logging
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `backend/src/hal/IHalInterface.h` | HAL interface contract |
+| `backend/src/hal/SimulatedHal.{h,cpp}` | Physics simulation |
+| `backend/src/config/Config.{h,cpp}` | Configuration loading |
+| `backend/tests/mocks/MockHal.h` | gmock HAL for unit tests |
+
 ## Conventions
 
 - C++17. Namespace: `injector::*`.

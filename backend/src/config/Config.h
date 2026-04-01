@@ -1,0 +1,66 @@
+#pragma once
+
+#include <string>
+
+namespace injector::config {
+
+struct ServerConfig {
+    int port = 50051;
+    int telemetryRateMs = 50;
+};
+
+struct ControlConfig {
+    int tickRateMs = 2;
+    bool pinCore = true;
+};
+
+struct PidConfig {
+    double kp = 100.0;
+    double ki = 50.0;
+    double kd = 5.0;
+    double iTermMax = 500.0;
+    double maxRpm = 1500.0;
+    double maxAcceleration = 10.0;
+};
+
+struct SafetyConfig {
+    double defaultPressureLimitPsi = 325.0;
+    double motorDivergenceThreshold = 200.0;
+    int motorDivergenceTicks = 25;
+    double jitterToleranceMs = 3.0;
+    int tickRateMs = 1;
+};
+
+struct HalConfig {
+    double flowPerRpm = 0.01;
+    double tubingResistance = 50.0;
+    double baselinePressure = 10.0;
+    double motorTimeConstantMs = 50.0;
+    double motorMaxRpm = 1500.0;
+};
+
+struct SyringeConfig {
+    double contrastVolumeMl = 100.0;
+    double salineVolumeMl = 50.0;
+};
+
+struct LoggingConfig {
+    int ringBufferSize = 300000;
+    int maxEvents = 10000;
+};
+
+struct Config {
+    ServerConfig server;
+    ControlConfig control;
+    PidConfig pid;
+    SafetyConfig safety;
+    HalConfig hal;
+    SyringeConfig syringe;
+    LoggingConfig logging;
+
+    static Config loadFromFile(const std::string& path);
+    static Config loadFromString(const std::string& json);
+    static Config defaults();
+};
+
+}  // namespace injector::config

@@ -2,6 +2,12 @@
 # Shared by the executable and test targets to avoid recompilation.
 add_library(injector-backend-lib STATIC
     src/placeholder.cpp
+    src/hal/MotorModel.cpp
+    src/hal/PressureModel.cpp
+    src/hal/ValveModel.cpp
+    src/hal/SyringeModel.cpp
+    src/hal/SimulatedHal.cpp
+    src/config/Config.cpp
 )
 
 target_include_directories(injector-backend-lib PUBLIC src)
