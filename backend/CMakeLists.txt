@@ -8,6 +8,9 @@ add_library(injector-backend-lib STATIC
     src/hal/SyringeModel.cpp
     src/hal/SimulatedHal.cpp
     src/config/Config.cpp
+    src/control/PidController.cpp
+    src/control/ControlLoop.cpp
+    src/logging/DataLogger.cpp
 )
 
 target_include_directories(injector-backend-lib PUBLIC src)

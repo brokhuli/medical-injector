@@ -32,6 +32,15 @@ Two-process, 7-layer backend architecture. See `spec/` for full details.
    - `Config` — 7-section JSON configuration with defaults and validation
    - Sections: server, control, pid, safety, hal, syringe, logging
 
+3. **Control Loop** — `backend/src/control/`
+   - `PidController` — discrete PID with anti-windup, filtered D term, acceleration ramp
+   - `ControlLoop` — dedicated 2ms tick thread, CPU affinity, reads HAL, runs PID, writes motor command
+   - `TickData` — per-tick telemetry snapshot struct (~80 bytes)
+
+4. **Data Logging** — `backend/src/logging/`
+   - `RingBuffer<T>` — header-only lock-free SPSC ring buffer (overwrite-oldest)
+   - `DataLogger` — tick ring buffer + event log, CSV/JSON export
+
 ### Key Files
 
 | File | Purpose |
@@ -39,6 +48,10 @@ Two-process, 7-layer backend architecture. See `spec/` for full details.
 | `backend/src/hal/IHalInterface.h` | HAL interface contract |
 | `backend/src/hal/SimulatedHal.{h,cpp}` | Physics simulation |
 | `backend/src/config/Config.{h,cpp}` | Configuration loading |
+| `backend/src/control/PidController.{h,cpp}` | PID controller |
+| `backend/src/control/ControlLoop.{h,cpp}` | Real-time control thread |
+| `backend/src/logging/RingBuffer.h` | Lock-free SPSC ring buffer |
+| `backend/src/logging/DataLogger.{h,cpp}` | Tick + event logging |
 | `backend/tests/mocks/MockHal.h` | gmock HAL for unit tests |
 
 ## Conventions

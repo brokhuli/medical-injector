@@ -11,6 +11,10 @@ add_executable(injector-unit-tests
     test_air_detector.cpp
     test_simulated_hal_integration.cpp
     test_config.cpp
+    test_ring_buffer.cpp
+    test_pid_controller.cpp
+    test_control_loop.cpp
+    test_data_logger.cpp
 )
 target_include_directories(injector-unit-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(injector-unit-tests PRIVATE
