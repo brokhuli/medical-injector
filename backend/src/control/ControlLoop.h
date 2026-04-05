@@ -1,8 +1,11 @@
 #pragma once
 
+#include "comms/CommandQueue.h"
+#include "comms/TelemetryBroadcast.h"
 #include "control/PidController.h"
 #include "hal/IHalInterface.h"
 #include "logging/RingBuffer.h"
+#include "state/Protocol.h"
 
 #include <atomic>
 #include <chrono>
@@ -47,9 +50,16 @@ struct ControlLoopConfig {
 
 class ControlLoop {
 public:
+    /// @param targets  Optional shared control targets. When non-null, the loop reads
+    ///                 targetFlowRate/injecting/activeFluidChannel from it each tick and
+    ///                 writes lastCommandedRpm/lastTickTimestampUs back to it.
+    ///                 When null, the loop uses its own setTargetFlowRate() (legacy mode).
     ControlLoop(std::shared_ptr<hal::IHalInterface> hal,
                 const ControlLoopConfig& config,
-                logging::RingBuffer<TickData>* tickBuffer = nullptr);
+                logging::RingBuffer<TickData>* tickBuffer = nullptr,
+                state::ControlTargets* targets = nullptr,
+                comms::CommandQueue* commandQueue = nullptr,
+                comms::TelemetryBroadcast* telemetryBroadcast = nullptr);
 
     ~ControlLoop();
 
@@ -82,6 +92,9 @@ private:
     ControlLoopConfig config_;
     PidController pid_;
     logging::RingBuffer<TickData>* tickBuffer_;
+    state::ControlTargets* targets_;
+    comms::CommandQueue* commandQueue_;
+    comms::TelemetryBroadcast* telemetryBroadcast_;
 
     std::thread thread_;
     std::atomic<bool> running_{false};

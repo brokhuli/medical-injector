@@ -3,6 +3,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <chrono>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -14,11 +15,17 @@ namespace injector::control {
 
 ControlLoop::ControlLoop(std::shared_ptr<hal::IHalInterface> hal,
                          const ControlLoopConfig& config,
-                         logging::RingBuffer<TickData>* tickBuffer)
+                         logging::RingBuffer<TickData>* tickBuffer,
+                         state::ControlTargets* targets,
+                         comms::CommandQueue* commandQueue,
+                         comms::TelemetryBroadcast* telemetryBroadcast)
     : hal_(std::move(hal)),
       config_(config),
       pid_(config.pid),
-      tickBuffer_(tickBuffer) {}
+      tickBuffer_(tickBuffer),
+      targets_(targets),
+      commandQueue_(commandQueue),
+      telemetryBroadcast_(telemetryBroadcast) {}
 
 ControlLoop::~ControlLoop() {
     stop();
@@ -102,6 +109,11 @@ void ControlLoop::run() {
     auto nextTick = std::chrono::steady_clock::now();
     double tickMsSum = 0.0;
 
+    // Per-phase volume tracking (local to run thread — no atomics needed)
+    int lastPhaseIndex = -1;
+    double phaseVolumeDelivered = 0.0;
+    bool phaseCompletePosted = false;
+
     while (running_.load(std::memory_order_acquire)) {
         auto tickStart = std::chrono::steady_clock::now();
 
@@ -118,19 +130,80 @@ void ControlLoop::run() {
         // 3. Estimate actual flow from motor RPM (linear model: flow = rpm * flowPerRpm)
         double actualFlowRate = motorRpmActual * config_.flowPerRpm;
 
-        // 4. Run PID → commanded RPM
-        double target = targetFlowRate_.load(std::memory_order_acquire);
-        double commandedRpm = pid_.compute(target, actualFlowRate, dtSeconds);
+        // 4. Determine target and whether to inject
+        double target;
+        bool injecting;
+        if (targets_) {
+            target = targets_->targetFlowRate.load(std::memory_order_acquire);
+            injecting = targets_->injecting.load(std::memory_order_acquire);
 
-        // 5. Write motor command
+            // Set the appropriate valve based on active fluid channel
+            int ch = targets_->activeFluidChannel.load(std::memory_order_acquire);
+            hal_->setValve(hal::FluidChannel::Contrast,
+                           (injecting && ch == 0) ? hal::ValveState::Open
+                                                  : hal::ValveState::Closed);
+            hal_->setValve(hal::FluidChannel::Saline,
+                           (injecting && ch == 1) ? hal::ValveState::Open
+                                                  : hal::ValveState::Closed);
+        } else {
+            target = targetFlowRate_.load(std::memory_order_acquire);
+            injecting = (target > 0.0);
+        }
+
+        // 5. Run PID → commanded RPM (only when injecting)
+        double commandedRpm = 0.0;
+        if (injecting) {
+            commandedRpm = pid_.compute(target, actualFlowRate, dtSeconds);
+        } else {
+            pid_.reset();
+        }
+
+        // 6. Write motor command
         hal_->setMotorRpm(commandedRpm);
 
-        // 6. Integrate volume
+        // 7. Publish to ControlTargets for safety monitor
+        if (targets_) {
+            targets_->lastCommandedRpm.store(commandedRpm, std::memory_order_release);
+            auto nowUs = static_cast<uint64_t>(
+                std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now().time_since_epoch())
+                    .count());
+            targets_->lastTickTimestampUs.store(nowUs, std::memory_order_release);
+        }
+
+        // 8. Integrate volume
         double vol = cumulativeVolume_.load(std::memory_order_relaxed) +
                      actualFlowRate * dtSeconds;
         cumulativeVolume_.store(vol, std::memory_order_relaxed);
 
-        // 7. Push tick data to ring buffer
+        // 8b. Phase volume tracking — detect completion and post PhaseComplete
+        if (targets_ && commandQueue_ && injecting) {
+            int phaseIndex = targets_->activePhaseIndex.load(std::memory_order_acquire);
+            double phaseTarget = targets_->currentPhaseVolumeTarget.load(
+                std::memory_order_acquire);
+
+            // Reset per-phase accumulator when phase index changes
+            if (phaseIndex != lastPhaseIndex) {
+                lastPhaseIndex = phaseIndex;
+                phaseVolumeDelivered = 0.0;
+                phaseCompletePosted = false;
+            }
+
+            if (phaseIndex >= 0 && phaseTarget > 0.0 && !phaseCompletePosted) {
+                phaseVolumeDelivered += actualFlowRate * dtSeconds;
+
+                if (phaseVolumeDelivered >= phaseTarget) {
+                    phaseCompletePosted = true;  // post once per phase
+                    comms::InternalCommand cmd;
+                    cmd.type = comms::InternalCommand::Type::PhaseComplete;
+                    cmd.phaseIndex = phaseIndex;
+                    cmd.volumeDelivered = phaseVolumeDelivered;
+                    commandQueue_->push(cmd);
+                }
+            }
+        }
+
+        // 9. Push tick data to ring buffer
         if (tickBuffer_) {
             auto elapsed = tickStart - startTime_;
             auto us = std::chrono::duration_cast<std::chrono::microseconds>(
@@ -149,7 +222,29 @@ void ControlLoop::run() {
             tickBuffer_->push(td);
         }
 
-        // 8. Update timing stats
+        // 9b. Push telemetry snapshot for gRPC streaming
+        if (telemetryBroadcast_ && targets_) {
+            comms::TelemetrySnapshot snap;
+            auto elapsed = tickStart - startTime_;
+            snap.timestampS = std::chrono::duration<double>(elapsed).count();
+            snap.state = static_cast<state::InjectorState>(
+                targets_->injecting.load(std::memory_order_acquire)
+                    ? 2  // Injecting
+                    : 0  // Idle (approximation; real state comes from SM)
+            );
+            snap.phaseIndex = targets_->activePhaseIndex.load(std::memory_order_acquire);
+            snap.targetFlowRate = target;
+            snap.actualFlowRate = actualFlowRate;
+            snap.pressure = pressure;
+            snap.motorRpm = motorRpmActual;
+            snap.totalVolumeDelivered = vol;
+            snap.contrastRemaining = contrastRemaining;
+            snap.salineRemaining = salineRemaining;
+            snap.elapsedTime = snap.timestampS;
+            telemetryBroadcast_->push(std::move(snap));
+        }
+
+        // 10. Update timing stats
         auto tickEnd = std::chrono::steady_clock::now();
         double tickMs =
             std::chrono::duration<double, std::milli>(tickEnd - tickStart)

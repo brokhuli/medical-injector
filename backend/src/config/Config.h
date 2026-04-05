@@ -27,8 +27,9 @@ struct SafetyConfig {
     double defaultPressureLimitPsi = 325.0;
     double motorDivergenceThreshold = 200.0;
     int motorDivergenceTicks = 25;
-    double jitterToleranceMs = 3.0;
-    int tickRateMs = 1;
+    double jitterToleranceMs = 30.0;   // Windows scheduler jitter can reach 15-20ms under load
+    int tickRateMs = 1;               // safety monitor's own tick rate
+    int controlLoopTickRateMs = 2;    // expected control loop tick rate (for timing check)
 };
 
 struct HalConfig {

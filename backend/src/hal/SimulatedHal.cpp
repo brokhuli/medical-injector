@@ -83,6 +83,7 @@ void SimulatedHal::injectFault(const SimulatedFault& fault) {
             {
                 std::lock_guard<std::mutex> lock(stateMutex_);
                 pressure_.setPressureOverride(fault.targetPsi);
+                currentPressure_ = fault.targetPsi;  // immediately visible to readPressure()
             }
             break;
         case SimulatedFault::Type::AirBubble:

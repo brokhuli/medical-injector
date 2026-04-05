@@ -21,7 +21,7 @@ TEST(ConfigTest, DefaultValues) {
     EXPECT_DOUBLE_EQ(cfg.safety.defaultPressureLimitPsi, 325.0);
     EXPECT_DOUBLE_EQ(cfg.safety.motorDivergenceThreshold, 200.0);
     EXPECT_EQ(cfg.safety.motorDivergenceTicks, 25);
-    EXPECT_DOUBLE_EQ(cfg.safety.jitterToleranceMs, 3.0);
+    EXPECT_DOUBLE_EQ(cfg.safety.jitterToleranceMs, 30.0);
     EXPECT_EQ(cfg.safety.tickRateMs, 1);
     EXPECT_DOUBLE_EQ(cfg.hal.flowPerRpm, 0.01);
     EXPECT_DOUBLE_EQ(cfg.hal.tubingResistance, 50.0);

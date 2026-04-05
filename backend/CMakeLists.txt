@@ -11,10 +11,18 @@ add_library(injector-backend-lib STATIC
     src/control/PidController.cpp
     src/control/ControlLoop.cpp
     src/logging/DataLogger.cpp
+    src/comms/CommandQueue.cpp
+    src/comms/EventBroadcast.cpp
+    src/comms/TelemetryBroadcast.cpp
+    src/comms/FaultQueue.cpp
+    src/state/StateMachine.cpp
+    src/safety/SafetyMonitor.cpp
+    src/comms/GrpcServer.cpp
 )
 
 target_include_directories(injector-backend-lib PUBLIC src)
 target_link_libraries(injector-backend-lib PUBLIC
+    injector-proto
     gRPC::grpc++
     protobuf::libprotobuf
     spdlog::spdlog

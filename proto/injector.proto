@@ -1,0 +1,152 @@
+syntax = "proto3";
+package injector;
+
+service InjectorService {
+  // Unary RPCs (frontend -> backend)
+  rpc SendCommand(CommandRequest)       returns (CommandResponse);
+  rpc LoadProtocol(LoadProtocolRequest) returns (CommandResponse);
+  rpc InjectFault(InjectFaultRequest)   returns (CommandResponse);
+  rpc ExportData(ExportRequest)         returns (ExportResponse);
+  rpc GetState(Empty)                   returns (StateSnapshot);
+
+  // Server-streaming RPCs (backend -> frontend)
+  rpc StreamTelemetry(StreamConfig)     returns (stream TelemetryFrame);
+  rpc StreamEvents(Empty)              returns (stream SystemEvent);
+}
+
+// ── Common ──────────────────────────────────────────────────────
+
+message Empty {}
+
+// ── Commands ────────────────────────────────────────────────────
+
+enum CommandType {
+  ARM            = 0;
+  DISARM         = 1;
+  START          = 2;
+  PAUSE          = 3;
+  RESUME         = 4;
+  RESET          = 5;
+  EMERGENCY_STOP = 6;
+}
+
+message CommandRequest {
+  CommandType command = 1;
+}
+
+message CommandResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+// ── Protocol ────────────────────────────────────────────────────
+
+enum FluidType {
+  CONTRAST = 0;
+  SALINE   = 1;
+}
+
+message Phase {
+  FluidType fluid_type  = 1;
+  double flow_rate      = 2;   // mL/s
+  double volume         = 3;   // mL
+  double pressure_limit = 4;   // psi
+}
+
+message LoadProtocolRequest {
+  repeated Phase phases = 1;
+}
+
+// ── Fault Injection ─────────────────────────────────────────────
+
+enum FaultType {
+  OVERPRESSURE      = 0;
+  AIR_BUBBLE        = 1;
+  MOTOR_STALL       = 2;
+  PARTIAL_OCCLUSION = 3;
+  TIMING_DELAY      = 4;
+}
+
+message InjectFaultRequest {
+  FaultType fault_type         = 1;
+  double target_psi            = 2;
+  double max_rpm               = 3;
+  double resistance_multiplier = 4;
+  double delay_ms              = 5;
+}
+
+// ── Telemetry ───────────────────────────────────────────────────
+
+enum InjectorState {
+  IDLE      = 0;
+  ARMED     = 1;
+  INJECTING = 2;
+  PAUSED    = 3;
+  COMPLETED = 4;
+  FAULT     = 5;
+}
+
+message StreamConfig {
+  int32 rate_ms = 1;   // desired interval in ms (default: 50, min: 20, max: 1000)
+}
+
+message TelemetryFrame {
+  double timestamp                           = 1;
+  InjectorState state                        = 2;
+  int32 phase_index                          = 3;
+  double target_flow_rate                    = 4;
+  double actual_flow_rate                    = 5;
+  double pressure                            = 6;
+  double motor_rpm                           = 7;
+  repeated double volume_delivered_per_phase = 8;
+  double total_volume_delivered              = 9;
+  double total_programmed_volume             = 10;
+  double elapsed_time                        = 11;
+  double contrast_remaining                  = 12;
+  double saline_remaining                    = 13;
+}
+
+// ── Events ──────────────────────────────────────────────────────
+
+enum EventType {
+  STATE_TRANSITION = 0;
+  FAULT_DETECTED   = 1;
+  PHASE_TRANSITION = 2;
+  PROTOCOL_LOADED  = 3;
+  COMMAND_REJECTED = 4;
+}
+
+message SystemEvent {
+  double timestamp  = 1;
+  EventType type    = 2;
+  string details    = 3;
+}
+
+// ── State Snapshot (reconnection) ───────────────────────────────
+
+message FaultInfo {
+  FaultType type   = 1;
+  double value     = 2;
+  double threshold = 3;
+  double timestamp = 4;
+}
+
+message StateSnapshot {
+  InjectorState state                = 1;
+  repeated Phase loaded_protocol     = 2;
+  TelemetryFrame latest_telemetry    = 3;
+  repeated SystemEvent recent_events = 4;
+  repeated FaultInfo active_faults   = 5;
+  double contrast_remaining          = 6;
+  double saline_remaining            = 7;
+}
+
+// ── Data Export ─────────────────────────────────────────────────
+
+message ExportRequest {
+  string format = 1;   // "csv" or "json"
+}
+
+message ExportResponse {
+  string data = 1;
+}
