@@ -10,5 +10,12 @@
         <file>qml/components/ProtocolPanel.qml</file>
         <file>qml/components/ControlPanel.qml</file>
         <file>qml/components/FaultDetail.qml</file>
+        <file>qml/components/FlowRateGauge.qml</file>
+        <file>qml/components/PressureGauge.qml</file>
+        <file>qml/components/VolumeProgress.qml</file>
+        <file>qml/components/ElapsedTimer.qml</file>
+        <file>qml/components/TimelineChart.qml</file>
+        <file>qml/components/Dashboard.qml</file>
+        <file>qml/components/EventLog.qml</file>
     </qresource>
 </RCC>

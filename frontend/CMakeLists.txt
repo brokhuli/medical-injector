@@ -29,6 +29,13 @@ qt_add_resources(injector-frontend "qml"
         qml/components/ProtocolPanel.qml
         qml/components/ControlPanel.qml
         qml/components/FaultDetail.qml
+        qml/components/FlowRateGauge.qml
+        qml/components/PressureGauge.qml
+        qml/components/VolumeProgress.qml
+        qml/components/ElapsedTimer.qml
+        qml/components/TimelineChart.qml
+        qml/components/Dashboard.qml
+        qml/components/EventLog.qml
 )
 
 # ── Include paths ───────────────────────────────────────────────
