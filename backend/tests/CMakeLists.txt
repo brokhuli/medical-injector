@@ -38,6 +38,7 @@ add_executable(injector-integration-tests
     test_injection_lifecycle.cpp
     test_fault_end_to_end.cpp
     test_safety_integration.cpp
+    test_config_integration.cpp
 )
 target_include_directories(injector-integration-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -51,3 +52,21 @@ target_link_libraries(injector-integration-tests PRIVATE
 
 add_test(NAME integration-tests COMMAND injector-integration-tests)
 set_tests_properties(integration-tests PROPERTIES TIMEOUT 300)
+
+# ── gRPC integration tests ──────────────────────────────────
+add_executable(injector-grpc-tests
+    test_main.cpp
+    test_grpc_integration.cpp
+)
+target_include_directories(injector-grpc-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/fixtures
+)
+target_link_libraries(injector-grpc-tests PRIVATE
+    injector-backend-lib
+    GTest::gtest
+    GTest::gmock
+)
+
+add_test(NAME grpc-tests COMMAND injector-grpc-tests)
+set_tests_properties(grpc-tests PROPERTIES TIMEOUT 300)

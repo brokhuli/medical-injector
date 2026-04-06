@@ -62,8 +62,8 @@ inline config::SafetyConfig defaultSafetyConfig() {
     cfg.motorDivergenceThreshold = 200.0;
     cfg.motorDivergenceTicks = 25;
     // Use a large jitter tolerance for integration tests: Windows scheduler jitter
-    // is 5-15 ms, so 3 ms would produce false TIMING_DELAY faults under load.
-    cfg.jitterToleranceMs = 20.0;
+    // can reach 15-25 ms under load, so use the same 30 ms default as Config.h.
+    cfg.jitterToleranceMs = 30.0;
     cfg.tickRateMs = 1;
     cfg.controlLoopTickRateMs = 2;
     return cfg;
