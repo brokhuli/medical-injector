@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>qml/main.qml</file>
+        <file>qml/Theme.qml</file>
+        <file>qml/qmldir</file>
+        <file>qml/components/ConnectionIndicator.qml</file>
+        <file>qml/components/StateIndicator.qml</file>
+    </qresource>
+</RCC>

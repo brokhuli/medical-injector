@@ -60,3 +60,11 @@ enable_testing()
 
 # ── Subdirectories ───────────────────────────────────────────
 add_subdirectory(backend)
+
+# Frontend requires Qt6 — only add if Qt6 is found
+find_package(Qt6 QUIET COMPONENTS Quick)
+if(Qt6_FOUND)
+    add_subdirectory(frontend)
+else()
+    message(STATUS "Qt6 not found — skipping frontend build")
+endif()

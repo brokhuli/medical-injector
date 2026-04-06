@@ -8,13 +8,17 @@ Medical contrast power injector simulator. Two-process architecture: C++ backend
 
 ## Build & Development Commands
 
-- Configure: `cmake -B build -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake`
+- Configure: `cmake -B build -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_PREFIX_PATH=C:/Qt/6.7.3/msvc2019_64`
 - Build all: `cmake --build build --config Release`
 - Build backend only: `cmake --build build --config Release --target injector-backend`
+- Build frontend only: `cmake --build build --config Release --target injector-frontend`
 - Run tests: `ctest --test-dir build -C Release --output-on-failure`
 - Run backend: `./build/backend/Release/injector-backend.exe`
+- Run frontend: `./build/frontend/Release/injector-frontend.exe` (start backend first)
+- Frontend CLI: `./build/frontend/Release/injector-frontend.exe --backend=localhost:50051`
 
 Note: On Windows, commands must be run from a VS Developer Shell (`Launch-VsDevShell.ps1 -Arch amd64`).
+Note: Frontend requires Qt6 6.5+. If Qt6 is not found, only the backend is built.
 
 ## Architecture
 
@@ -53,6 +57,19 @@ Two-process, 7-layer backend architecture. See `spec/` for full details.
 | `backend/src/logging/RingBuffer.h` | Lock-free SPSC ring buffer |
 | `backend/src/logging/DataLogger.{h,cpp}` | Tick + event logging |
 | `backend/tests/mocks/MockHal.h` | gmock HAL for unit tests |
+
+### Frontend (M5)
+
+Qt6/QML process connecting to backend via gRPC on localhost:50051.
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/grpc/GrpcClientService.{h,cpp}` | gRPC channel, stub, streaming threads, reconnection |
+| `frontend/src/bridge/InjectorBridge.{h,cpp}` | QObject bridge: Q_PROPERTY, Q_INVOKABLE for QML |
+| `frontend/qml/main.qml` | ApplicationWindow, root layout |
+| `frontend/qml/Theme.qml` | Singleton: colors, fonts, spacing |
+| `frontend/qml/components/ConnectionIndicator.qml` | Connection status dot |
+| `frontend/qml/components/StateIndicator.qml` | Color-coded state rectangle |
 
 ## Conventions
 
