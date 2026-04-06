@@ -5,5 +5,10 @@
         <file>qml/qmldir</file>
         <file>qml/components/ConnectionIndicator.qml</file>
         <file>qml/components/StateIndicator.qml</file>
+        <file>qml/components/PhaseRow.qml</file>
+        <file>qml/components/SyringeIndicator.qml</file>
+        <file>qml/components/ProtocolPanel.qml</file>
+        <file>qml/components/ControlPanel.qml</file>
+        <file>qml/components/FaultDetail.qml</file>
     </qresource>
 </RCC>

@@ -74,20 +74,10 @@ ApplicationWindow {
         anchors.margins: App.Theme.spacingLarge
         spacing: App.Theme.spacingLarge
 
-        // Left panel: Protocol configuration (placeholder for S12)
-        Rectangle {
+        // Left panel: Protocol configuration
+        Components.ProtocolPanel {
             Layout.preferredWidth: 300
             Layout.fillHeight: true
-            color: App.Theme.surface
-            radius: 8
-
-            Text {
-                anchors.centerIn: parent
-                text: "Protocol Panel\n(S12)"
-                color: App.Theme.textSecondary
-                font.pixelSize: App.Theme.fontSizeMedium
-                horizontalAlignment: Text.AlignHCenter
-            }
         }
 
         // Right panel: Control + Dashboard
@@ -96,34 +86,19 @@ ApplicationWindow {
             Layout.fillHeight: true
             spacing: App.Theme.spacingLarge
 
-            // Control panel with state indicator
-            Rectangle {
+            // Control panel with state indicator and buttons
+            Components.ControlPanel {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 80
-                color: App.Theme.surface
-                radius: 8
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: App.Theme.spacingLarge
-                    spacing: App.Theme.spacingLarge
-
-                    Components.StateIndicator {
-                        state: injectorBridge.injectorState
-                    }
-
-                    // Placeholder for control buttons (S12)
-                    Text {
-                        text: "Control Buttons (S12)"
-                        color: App.Theme.textSecondary
-                        font.pixelSize: App.Theme.fontSizeMedium
-                        Layout.fillWidth: true
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-                }
+                Layout.preferredHeight: implicitHeight
+                Layout.minimumHeight: 180
             }
 
-            // Dashboard area (placeholder for S13)
+            // Fault detail (only visible when faults exist)
+            Components.FaultDetail {
+                Layout.fillWidth: true
+            }
+
+            // Dashboard area (placeholder for S13 gauges + chart)
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -167,6 +142,14 @@ ApplicationWindow {
                         anchors.horizontalCenter: parent.horizontalCenter
                         visible: injectorBridge.connectionStatus === "connected"
                     }
+
+                    Text {
+                        text: "Elapsed: " + formatTime(injectorBridge.elapsedTime)
+                        color: App.Theme.text
+                        font.pixelSize: App.Theme.fontSizeMedium
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        visible: injectorBridge.connectionStatus === "connected"
+                    }
                 }
             }
         }
@@ -183,5 +166,11 @@ ApplicationWindow {
             color: App.Theme.textSecondary
             font.pixelSize: App.Theme.fontSizeMedium
         }
+    }
+
+    function formatTime(seconds) {
+        var min = Math.floor(seconds / 60)
+        var sec = (seconds % 60).toFixed(1)
+        return (min < 10 ? "0" : "") + min + ":" + (sec < 10 ? "0" : "") + sec
     }
 }

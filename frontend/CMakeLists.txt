@@ -24,6 +24,11 @@ qt_add_resources(injector-frontend "qml"
         qml/qmldir
         qml/components/ConnectionIndicator.qml
         qml/components/StateIndicator.qml
+        qml/components/PhaseRow.qml
+        qml/components/SyringeIndicator.qml
+        qml/components/ProtocolPanel.qml
+        qml/components/ControlPanel.qml
+        qml/components/FaultDetail.qml
 )
 
 # ── Include paths ───────────────────────────────────────────────
