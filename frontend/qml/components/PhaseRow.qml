@@ -53,7 +53,11 @@ Rectangle {
                 enabled: root.editable
                 Layout.preferredWidth: 110
 
+                property bool ready: false
+                Component.onCompleted: ready = true
+
                 onCurrentIndexChanged: {
+                    if (!ready) return
                     root.fluidType = currentIndex === 1 ? "saline" : "contrast"
                     root.emitValues()
                 }

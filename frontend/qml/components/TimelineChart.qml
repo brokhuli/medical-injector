@@ -69,7 +69,7 @@ Rectangle {
             var len = data.length
 
             // Determine time range
-            var latestTime = data[len - 1].elapsed || 0
+            var latestTime = data[len - 1].timestamp || 0
             var timeStart = Math.max(0, latestTime - windowSeconds)
             var timeEnd = latestTime
 
@@ -77,7 +77,7 @@ Rectangle {
             drawGrid(ctx, timeStart, timeEnd)
 
             // Draw flow rate line (left Y-axis, blue)
-            drawSeries(ctx, data, "actualFlow", timeStart, timeEnd,
+            drawSeries(ctx, data, "actualFlowRate", timeStart, timeEnd,
                        maxFlowRate, App.Theme.injecting.toString())
 
             // Draw pressure line (right Y-axis, orange)
@@ -147,7 +147,7 @@ Rectangle {
             var started = false
             for (var i = 0; i < data.length; i++) {
                 var d = data[i]
-                var t = d.elapsed || 0
+                var t = d.timestamp || 0
                 if (t < timeStart) continue
 
                 var x = leftMargin + plotW * (t - timeStart) / timeRange

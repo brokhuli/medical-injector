@@ -228,10 +228,7 @@ void ControlLoop::run() {
             auto elapsed = tickStart - startTime_;
             snap.timestampS = std::chrono::duration<double>(elapsed).count();
             snap.state = static_cast<state::InjectorState>(
-                targets_->injecting.load(std::memory_order_acquire)
-                    ? 2  // Injecting
-                    : 0  // Idle (approximation; real state comes from SM)
-            );
+                targets_->currentState.load(std::memory_order_acquire));
             snap.phaseIndex = targets_->activePhaseIndex.load(std::memory_order_acquire);
             snap.targetFlowRate = target;
             snap.actualFlowRate = actualFlowRate;

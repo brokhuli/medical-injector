@@ -115,6 +115,19 @@ void InjectorBridge::addPhase(const QString& fluidType, double flowRate,
     emit protocolChanged();
 }
 
+void InjectorBridge::updatePhase(int index, const QString& fluidType, double flowRate,
+                                 double volume, double pressureLimit) {
+    if (index >= 0 && index < protocol_.size()) {
+        QVariantMap phase;
+        phase["fluidType"] = fluidType;
+        phase["flowRate"] = flowRate;
+        phase["volume"] = volume;
+        phase["pressureLimit"] = pressureLimit;
+        protocol_[index] = phase;
+        emit protocolChanged();
+    }
+}
+
 void InjectorBridge::removePhase(int index) {
     if (index >= 0 && index < protocol_.size()) {
         protocol_.removeAt(index);

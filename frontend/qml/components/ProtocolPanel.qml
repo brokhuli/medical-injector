@@ -50,14 +50,7 @@ Rectangle {
                 }
 
                 onValuesChanged: function(idx, ft, fr, vol, pl) {
-                    // Remove and re-add with updated values
-                    bridge.removePhase(idx)
-                    // Insert at the same position by adding then reordering
-                    bridge.addPhase(ft, fr, vol, pl)
-                    var lastIdx = bridge.protocol.length - 1
-                    if (lastIdx > idx) {
-                        bridge.reorderPhases(lastIdx, idx)
-                    }
+                    bridge.updatePhase(idx, ft, fr, vol, pl)
                 }
             }
 

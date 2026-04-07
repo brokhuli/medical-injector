@@ -368,6 +368,9 @@ void StateMachine::run() {
 void StateMachine::transitionTo(InjectorState newState, const std::string& trigger) {
     InjectorState from = state_;
     state_ = newState;
+    if (targets_) {
+        targets_->currentState.store(static_cast<int>(newState), std::memory_order_release);
+    }
     spdlog::info("State: {} → {} ({})", toString(from), toString(newState),
                  trigger);
     emitStateTransitionEvent(from, newState, trigger);

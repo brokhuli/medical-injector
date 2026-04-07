@@ -81,6 +81,8 @@ public:
     // ── Protocol editing (local, no gRPC until loadProtocol) ────
     Q_INVOKABLE void addPhase(const QString& fluidType, double flowRate,
                               double volume, double pressureLimit);
+    Q_INVOKABLE void updatePhase(int index, const QString& fluidType, double flowRate,
+                                 double volume, double pressureLimit);
     Q_INVOKABLE void removePhase(int index);
     Q_INVOKABLE void reorderPhases(int from, int to);
     Q_INVOKABLE void clearProtocol();

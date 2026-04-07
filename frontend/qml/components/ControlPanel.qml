@@ -17,7 +17,7 @@ Rectangle {
         "Injecting": { arm: false, disarm: false, start: false, pause: true,  resume: false, reset: false },
         "Paused":    { arm: false, disarm: false, start: false, pause: false, resume: true,  reset: false },
         "Fault":     { arm: false, disarm: false, start: false, pause: false, resume: false, reset: true  },
-        "Completed": { arm: false, disarm: false, start: false, pause: false, resume: false, reset: false }
+        "Completed": { arm: false, disarm: false, start: false, pause: false, resume: false, reset: true  }
     })
 
     readonly property var currentButtons: buttonStates[state] || buttonStates["Idle"]
