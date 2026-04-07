@@ -13,7 +13,16 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            build_type: Release
+            sanitizer: ""
+          - os: ubuntu-latest
+            build_type: Debug
+            sanitizer: "-DCMAKE_CXX_FLAGS=-fsanitize=address,undefined -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined"
+          - os: windows-latest
+            build_type: Release
+            sanitizer: ""
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -32,10 +41,11 @@ jobs:
           vcpkgGitCommitId: '5b27e6672a8aff1e59be65c2f316da67baef5044'
 
       - name: Configure CMake
-        run: cmake -B build -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B build -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${{ matrix.sanitizer }}
 
       - name: Build
-        run: cmake --build build --config Release
+        run: cmake --build build --config ${{ matrix.build_type }}
 
       - name: Test
-        run: ctest --test-dir build --config Release --output-on-failure
+        run: ctest --test-dir build --config ${{ matrix.build_type }} --output-on-failure
+        timeout-minutes: 10

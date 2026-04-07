@@ -39,6 +39,7 @@ add_executable(injector-integration-tests
     test_fault_end_to_end.cpp
     test_safety_integration.cpp
     test_config_integration.cpp
+    test_timing_verification.cpp
 )
 target_include_directories(injector-integration-tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}

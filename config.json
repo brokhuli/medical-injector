@@ -1,0 +1,41 @@
+{
+    "server": {
+        "port": 50051,
+        "telemetryRateMs": 50
+    },
+    "control": {
+        "tickRateMs": 2,
+        "pinCore": true
+    },
+    "pid": {
+        "kp": 100.0,
+        "ki": 50.0,
+        "kd": 5.0,
+        "iTermMax": 500.0,
+        "maxRpm": 1500.0,
+        "maxAcceleration": 10.0
+    },
+    "safety": {
+        "defaultPressureLimitPsi": 325.0,
+        "motorDivergenceThreshold": 200.0,
+        "motorDivergenceTicks": 25,
+        "jitterToleranceMs": 30.0,
+        "tickRateMs": 1,
+        "controlLoopTickRateMs": 2
+    },
+    "hal": {
+        "flowPerRpm": 0.01,
+        "tubingResistance": 50.0,
+        "baselinePressure": 10.0,
+        "motorTimeConstantMs": 50.0,
+        "motorMaxRpm": 1500.0
+    },
+    "syringe": {
+        "contrastVolumeMl": 100.0,
+        "salineVolumeMl": 50.0
+    },
+    "logging": {
+        "ringBufferSize": 300000,
+        "maxEvents": 10000
+    }
+}
