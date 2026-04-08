@@ -264,15 +264,33 @@ void InjectorBridge::handleTelemetry(
     phaseIndex_ = phaseIdx;
     totalVolumeDelivered_ = totalVolDelivered;
     totalProgrammedVolume_ = totalVolProgrammed;
-    elapsedTime_ = elapsed;
     contrastRemaining_ = contrastRemain;
     salineRemaining_ = salineRemain;
+
+    // Elapsed time: only runs during Injecting/Paused, resets on Idle/Armed
+    auto protoState = static_cast<::injector::InjectorState>(state);
+    if (protoState == ::injector::INJECTING) {
+        if (injectionStartTime_ < 0.0) {
+            injectionStartTime_ = elapsed;  // record when injection began
+        }
+        elapsedTime_ = elapsed - injectionStartTime_;
+    } else if (protoState == ::injector::PAUSED) {
+        // Keep showing last elapsed (frozen)
+    } else if (protoState == ::injector::IDLE || protoState == ::injector::ARMED) {
+        elapsedTime_ = 0.0;
+        injectionStartTime_ = -1.0;
+        if (!telemetryHistory_.isEmpty()) {
+            telemetryHistory_.clear();
+            emit telemetryHistoryChanged();
+        }
+    }
+    // Completed/Fault: keep showing final elapsed
 
     telemetryDirty_ = true; // Timer will emit telemetryChanged
 
     // Append to telemetry history (rolling window)
     QVariantMap historyEntry;
-    historyEntry["timestamp"] = elapsed;
+    historyEntry["timestamp"] = elapsedTime_;
     historyEntry["targetFlowRate"] = targetFlow;
     historyEntry["actualFlowRate"] = actualFlow;
     historyEntry["pressure"] = pres;

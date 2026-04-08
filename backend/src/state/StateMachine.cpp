@@ -147,7 +147,7 @@ CommandResult StateMachine::processCommand(const comms::InternalCommand& cmd) {
             if (state_ == InjectorState::Idle) {
                 return {true, ""};  // idempotent
             }
-            if (state_ != InjectorState::Fault) {
+            if (state_ != InjectorState::Fault && state_ != InjectorState::Completed) {
                 std::string err =
                     "Cannot reset: current state is " + std::string(toString(state_));
                 emitCommandRejectedEvent("RESET", "INVALID_STATE_TRANSITION");

@@ -8,7 +8,70 @@ Rectangle {
 
     property var bridge: injectorBridge
     readonly property bool isIdle: bridge.injectorState === "Idle"
+    readonly property bool isPreInjection: bridge.injectorState === "Idle" || bridge.injectorState === "Armed"
     readonly property int maxPhases: 20
+
+    // Track volume delivered at injection start so we use the delta
+    readonly property var _loaded: bridge.loadedProtocol
+    readonly property double _volDelivered: bridge.totalVolumeDelivered
+    property double _volDeliveredAtStart: 0
+
+    onIsPreInjectionChanged: {
+        if (!isPreInjection) {
+            // Capture baseline when injection begins
+            _volDeliveredAtStart = _volDelivered
+        }
+    }
+
+    readonly property double _volThisRun: Math.max(0, _volDelivered - _volDeliveredAtStart)
+
+    readonly property double contrastDisplay: {
+        if (isPreInjection) return totalContrast
+        var contrastDel = 0
+        var remaining = _volThisRun
+        for (var i = 0; i < _loaded.length && remaining > 0; i++) {
+            var phase = _loaded[i]
+            var phaseVol = phase.volume || 0
+            var used = Math.min(phaseVol, remaining)
+            if ((phase.fluidType || "contrast").toLowerCase() === "contrast")
+                contrastDel += used
+            remaining -= used
+        }
+        return Math.max(0, totalContrast - contrastDel)
+    }
+    readonly property double salineDisplay: {
+        if (isPreInjection) return totalSaline
+        var salineDel = 0
+        var remaining = _volThisRun
+        for (var i = 0; i < _loaded.length && remaining > 0; i++) {
+            var phase = _loaded[i]
+            var phaseVol = phase.volume || 0
+            var used = Math.min(phaseVol, remaining)
+            if ((phase.fluidType || "").toLowerCase() === "saline")
+                salineDel += used
+            remaining -= used
+        }
+        return Math.max(0, totalSaline - salineDel)
+    }
+
+    // Recompute totals whenever protocol changes
+    readonly property var _proto: bridge.protocol
+    readonly property double totalContrast: {
+        var total = 0
+        for (var i = 0; i < _proto.length; i++) {
+            if ((_proto[i].fluidType || "contrast").toLowerCase() === "contrast")
+                total += (_proto[i].volume || 0)
+        }
+        return total
+    }
+    readonly property double totalSaline: {
+        var total = 0
+        for (var i = 0; i < _proto.length; i++) {
+            if ((_proto[i].fluidType || "").toLowerCase() === "saline")
+                total += (_proto[i].volume || 0)
+        }
+        return total
+    }
 
     color: App.Theme.surface
     radius: 8
@@ -98,19 +161,19 @@ Rectangle {
             color: Qt.rgba(1, 1, 1, 0.1)
         }
 
-        // Syringe levels
+        // Syringe levels — show protocol totals when idle, telemetry remaining otherwise
         SyringeIndicator {
             label: "Contrast"
-            remaining: bridge.contrastRemaining
-            capacity: 100.0
+            remaining: root.contrastDisplay
+            capacity: Math.max(root.totalContrast, 1.0)
             barColor: App.Theme.injecting
             Layout.fillWidth: true
         }
 
         SyringeIndicator {
             label: "Saline"
-            remaining: bridge.salineRemaining
-            capacity: 50.0
+            remaining: root.salineDisplay
+            capacity: Math.max(root.totalSaline, 1.0)
             barColor: "#06b6d4"
             Layout.fillWidth: true
         }

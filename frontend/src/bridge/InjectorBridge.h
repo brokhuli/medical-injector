@@ -131,6 +131,7 @@ private:
     double totalVolumeDelivered_ = 0.0;
     double totalProgrammedVolume_ = 0.0;
     double elapsedTime_ = 0.0;
+    double injectionStartTime_ = -1.0;  // backend timestamp when injection started; -1 = not started
     double contrastRemaining_ = 0.0;
     double salineRemaining_ = 0.0;
     bool telemetryDirty_ = false;
