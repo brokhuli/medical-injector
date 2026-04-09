@@ -8,9 +8,9 @@ Rectangle {
 
     property int phaseIndex: 0
     property string fluidType: "contrast"
-    property double flowRate: 4.0
-    property double volume: 80.0
-    property double pressureLimit: 325.0
+    property double flowRate: 2.0
+    property double volume: 40.0
+    property double pressureLimit: 250.0
     property bool editable: true
 
     signal removeRequested(int index)
@@ -122,7 +122,7 @@ Rectangle {
                 enabled: root.editable
                 Layout.fillWidth: true
                 Layout.preferredHeight: 30
-                validator: DoubleValidator { bottom: 0.1; top: 10.0; decimals: 1 }
+                validator: DoubleValidator { bottom: 0.1; top: 6.0; decimals: 1 }
                 horizontalAlignment: Text.AlignRight
 
                 color: acceptableInput ? App.Theme.text : App.Theme.fault
@@ -220,7 +220,7 @@ Rectangle {
                 enabled: root.editable
                 Layout.fillWidth: true
                 Layout.preferredHeight: 30
-                validator: DoubleValidator { bottom: 50.0; top: 400.0; decimals: 0 }
+                validator: DoubleValidator { bottom: 50.0; top: 300.0; decimals: 0 }
                 horizontalAlignment: Text.AlignRight
 
                 color: acceptableInput ? App.Theme.text : App.Theme.fault
@@ -255,9 +255,9 @@ Rectangle {
         Text {
             visible: !root.allValid
             text: {
-                if (!root.flowRateValid) return "Flow rate: 0.1 \u2013 10.0 mL/s"
+                if (!root.flowRateValid) return "Flow rate: 0.1 \u2013 6.0 mL/s"
                 if (!root.volumeValid) return "Volume: 1.0 \u2013 200.0 mL"
-                if (!root.pressureLimitValid) return "Pressure: 50 \u2013 400 psi"
+                if (!root.pressureLimitValid) return "Pressure: 50 \u2013 300 psi"
                 return ""
             }
             color: App.Theme.fault

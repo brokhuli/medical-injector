@@ -11,9 +11,33 @@ Rectangle {
         var phases = bridge.loadedProtocol
         var idx = bridge.phaseIndex
         if (phases && idx >= 0 && idx < phases.length) {
-            return phases[idx].pressureLimit || 325.0
+            return phases[idx].pressureLimit || 250.0
         }
-        return 325.0
+        return 250.0
+    }
+
+    // Freeze elapsed time 2s after injection stops
+    property string _state: bridge.injectorState
+    property bool _timerFrozen: false
+    property double _frozenElapsed: 0.0
+
+    on_StateChanged: {
+        if (_state === "Injecting") {
+            _timerFrozen = false
+            elapsedFreezeTimer.stop()
+        } else if (!_timerFrozen) {
+            elapsedFreezeTimer.restart()
+        }
+    }
+
+    Timer {
+        id: elapsedFreezeTimer
+        interval: 2000
+        repeat: false
+        onTriggered: {
+            root._frozenElapsed = bridge.elapsedTime
+            root._timerFrozen = true
+        }
     }
 
     color: App.Theme.surface
@@ -42,7 +66,7 @@ Rectangle {
             }
 
             ElapsedTimer {
-                elapsed: bridge.elapsedTime
+                elapsed: root._timerFrozen ? root._frozenElapsed : bridge.elapsedTime
                 Layout.preferredWidth: 160
             }
         }
@@ -57,6 +81,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.minimumHeight: 120
+            loadedProtocol: injectorBridge.loadedProtocol
         }
     }
 }

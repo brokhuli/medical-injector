@@ -46,7 +46,7 @@ Rectangle {
 
             // Target indicator line
             Rectangle {
-                x: parent.width * Math.min(targetFlow / 10.0, 1.0) - 1
+                x: parent.width * Math.min(targetFlow / 6.0, 1.0) - 1
                 width: 2
                 height: parent.height
                 color: App.Theme.textSecondary
@@ -55,7 +55,7 @@ Rectangle {
 
             // Actual flow bar
             Rectangle {
-                width: parent.width * Math.min(actualFlow / 10.0, 1.0)
+                width: parent.width * Math.min(actualFlow / 6.0, 1.0)
                 height: parent.height
                 radius: 4
                 color: {

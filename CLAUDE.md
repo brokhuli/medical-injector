@@ -21,8 +21,22 @@ Medical contrast power injector simulator. Two-process architecture: C++ backend
 - Run frontend: `./build/frontend/Release/injector-frontend.exe` (start backend first)
 - Frontend CLI: `./build/frontend/Release/injector-frontend.exe --backend=localhost:50051`
 
-Note: On Windows, commands must be run from a VS Developer Shell (`Launch-VsDevShell.ps1 -Arch amd64`).
 Note: Frontend requires Qt6 6.5+. If Qt6 is not found, only the backend is built.
+
+### Windows Toolchain Paths
+
+VS Build Tools and cmake/ctest are NOT on PATH in the default shell. Use these direct paths from bash:
+
+```bash
+CMAKE="/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe"
+CTEST="/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/ctest.exe"
+```
+
+Build: `"$CMAKE" --build build --config Release 2>&1`
+Tests: `"$CTEST" --test-dir build -C Release --output-on-failure 2>&1`
+
+VS installation: `C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools`
+VsDevCmd: `C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat`
 
 ## Architecture
 

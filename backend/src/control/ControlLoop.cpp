@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -150,10 +151,48 @@ void ControlLoop::run() {
             injecting = (target > 0.0);
         }
 
-        // 5. Run PID → commanded RPM (only when injecting)
+        // 5. Run PID → commanded RPM
+        //    Ramp down flow before phase volume is fully delivered so we
+        //    decelerate smoothly to 0 exactly when target volume is reached.
         double commandedRpm = 0.0;
         if (injecting) {
-            commandedRpm = pid_.compute(target, actualFlowRate, dtSeconds);
+            double adjustedTarget = target;
+
+            // Smooth end-of-phase ramp: linearly reduce target flow to 0 over
+            // the last portion of phase volume so the motor reaches 0 flow
+            // right as the target volume is delivered.
+            // Ramp window = target_flow * rampTime / 2  (area of triangle)
+            // With rampTime ~1s at 4 mL/s, window = 2 mL.
+            if (targets_) {
+                int phaseIndex = targets_->activePhaseIndex.load(std::memory_order_acquire);
+                double phaseTarget = targets_->currentPhaseVolumeTarget.load(
+                    std::memory_order_acquire);
+                if (phaseIndex >= 0 && phaseTarget > 0.0) {
+                    double remaining = phaseTarget - phaseVolumeDelivered;
+                    // Ramp window: volume consumed during decel from full speed to 0.
+                    // Two contributions:
+                    //   1) PID linear ramp: triangle area = flow² / (2 * decelRate)
+                    //   2) Motor exponential lag tail: flow * tau (first-order response)
+                    // The motor doesn't stop instantly when commanded to — it
+                    // continues delivering ~flow*tau of extra volume as it decays.
+                    double decelRate = config_.pid.maxAcceleration;
+                    double tau = config_.motorTimeConstantS;
+                    double rampWindow = (target * target) / (2.0 * decelRate) + target * tau;
+                    if (remaining < rampWindow && rampWindow > 0.0) {
+                        // Quadratic profile: fraction² gives a convex (concave-down)
+                        // curve that commands faster initial deceleration.  This
+                        // compensates for the motor lag which keeps actual flow
+                        // above the commanded value during decel.
+                        double fraction = remaining / rampWindow;
+                        double maxFlow = target * fraction * fraction;
+                        if (maxFlow < adjustedTarget) {
+                            adjustedTarget = (maxFlow > 0.0) ? maxFlow : 0.0;
+                        }
+                    }
+                }
+            }
+
+            commandedRpm = pid_.compute(adjustedTarget, actualFlowRate, dtSeconds);
         } else {
             pid_.reset();
         }
@@ -264,7 +303,7 @@ void ControlLoop::run() {
             overrunCount_.fetch_add(1, std::memory_order_relaxed);
         }
 
-        // 9. Sleep until next tick
+        // 11. Sleep until next tick
         nextTick += tickPeriod;
         std::this_thread::sleep_until(nextTick);
     }

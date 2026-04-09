@@ -6,7 +6,7 @@ Rectangle {
     id: root
 
     property double pressure: 0.0
-    property double pressureLimit: 325.0
+    property double pressureLimit: 250.0
 
     readonly property double maxScale: 400.0
     readonly property double ratio: Math.min(pressure / maxScale, 1.0)

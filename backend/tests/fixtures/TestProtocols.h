@@ -51,6 +51,7 @@ inline control::ControlLoopConfig defaultLoopConfig(const hal::HalConfig& hal = 
     cfg.pid.iTermMax = 500.0;
     cfg.pid.maxRpm = 1500.0;
     cfg.pid.maxAcceleration = 10.0;
+    cfg.motorTimeConstantS = hal.motorTimeConstantMs / 1000.0;
     return cfg;
 }
 

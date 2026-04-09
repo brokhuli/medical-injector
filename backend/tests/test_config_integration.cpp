@@ -97,6 +97,7 @@ TEST(ConfigIntegration, ControlLoopUsesConfiguredPidGains) {
     loopCfg.pid.iTermMax    = cfg.pid.iTermMax;
     loopCfg.pid.maxRpm      = cfg.pid.maxRpm;
     loopCfg.pid.maxAcceleration = cfg.pid.maxAcceleration;
+    loopCfg.motorTimeConstantS  = cfg.hal.motorTimeConstantMs / 1000.0;
 
     logging::DataLogger logger;
     control::ControlLoop loop(hal, loopCfg, &logger.tickBuffer());

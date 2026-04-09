@@ -75,6 +75,7 @@ int main(int argc, char* argv[]) {
     loopCfg.pid.iTermMax    = cfg.pid.iTermMax;
     loopCfg.pid.maxRpm      = cfg.pid.maxRpm;
     loopCfg.pid.maxAcceleration = cfg.pid.maxAcceleration;
+    loopCfg.motorTimeConstantS  = cfg.hal.motorTimeConstantMs / 1000.0;
 
     injector::control::ControlLoop controlLoop(
         hal, loopCfg, &logger.tickBuffer(), &targets, &commandQueue, &telemetry);

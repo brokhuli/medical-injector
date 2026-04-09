@@ -112,6 +112,7 @@ void SimulatedHal::clearFaults() {
         std::lock_guard<std::mutex> lock(stateMutex_);
         motor_.clearFaults();
         pressure_.clearFaults();
+        syringes_.resetToFull();
     }
     airDetector_.setAirPresent(false);  // atomic
 }

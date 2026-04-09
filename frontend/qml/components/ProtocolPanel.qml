@@ -99,20 +99,28 @@ Rectangle {
             spacing: App.Theme.spacingSmall
             model: bridge.protocol
 
+            // Preserve scroll position across model resets
+            property real savedContentY: 0
+            onModelChanged: {
+                contentY = savedContentY
+            }
+
             delegate: PhaseRow {
                 width: phaseList.width
                 phaseIndex: index
                 fluidType: modelData.fluidType || "contrast"
-                flowRate: modelData.flowRate || 4.0
-                volume: modelData.volume || 80.0
-                pressureLimit: modelData.pressureLimit || 325.0
+                flowRate: modelData.flowRate || 2.0
+                volume: modelData.volume || 40.0
+                pressureLimit: modelData.pressureLimit || 250.0
                 editable: root.isIdle
 
                 onRemoveRequested: function(idx) {
+                    phaseList.savedContentY = phaseList.contentY
                     bridge.removePhase(idx)
                 }
 
                 onValuesChanged: function(idx, ft, fr, vol, pl) {
+                    phaseList.savedContentY = phaseList.contentY
                     bridge.updatePhase(idx, ft, fr, vol, pl)
                 }
             }
@@ -151,7 +159,7 @@ Rectangle {
                 verticalAlignment: Text.AlignVCenter
             }
 
-            onClicked: bridge.addPhase("contrast", 4.0, 80.0, 325.0)
+            onClicked: bridge.addPhase("contrast", 2.0, 40.0, 250.0)
         }
 
         // Separator

@@ -7,10 +7,20 @@ Rectangle {
 
     property var bridge: injectorBridge
 
-    readonly property double totalDelivered: bridge.totalVolumeDelivered
+    readonly property double _rawDelivered: bridge.totalVolumeDelivered
     readonly property double totalProgrammed: bridge.totalProgrammedVolume
     readonly property int currentPhase: bridge.phaseIndex
     readonly property var phases: bridge.loadedProtocol
+    readonly property bool isPreInjection: bridge.injectorState === "Idle" || bridge.injectorState === "Armed"
+
+    // Track volume at injection start so we use the delta for this run
+    property double _volAtStart: 0
+    onIsPreInjectionChanged: {
+        if (!isPreInjection) {
+            _volAtStart = _rawDelivered
+        }
+    }
+    readonly property double totalDelivered: isPreInjection ? 0 : Math.max(0, _rawDelivered - _volAtStart)
 
     implicitHeight: col.implicitHeight
     color: "transparent"

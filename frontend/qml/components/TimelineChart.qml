@@ -5,13 +5,39 @@ Rectangle {
     id: root
 
     property var history: injectorBridge.telemetryHistory
+    property var loadedProtocol: []
     property double windowSeconds: 30.0
 
-    readonly property double maxFlowRate: 10.0
-    readonly property double maxPressure: 400.0
+    readonly property double maxFlowRate: 6.0
+    readonly property double maxPressure: 300.0
 
     color: Qt.rgba(0, 0, 0, 0.2)
     radius: 6
+
+    // Chart freezes 2s after injection stops; resumes on next Injecting state
+    property string _state: injectorBridge.injectorState
+    property bool _wasInjecting: false
+
+    on_StateChanged: {
+        if (_state === "Injecting") {
+            _wasInjecting = true
+            stopDelayTimer.stop()
+            repaintTimer.running = true
+        } else if (_wasInjecting) {
+            // State left Injecting — start 2s countdown to freeze
+            stopDelayTimer.restart()
+        }
+    }
+
+    Timer {
+        id: stopDelayTimer
+        interval: 2000
+        repeat: false
+        onTriggered: {
+            repaintTimer.running = false
+            canvas.requestPaint()  // one final repaint
+        }
+    }
 
     // 10 Hz repaint timer
     Timer {
@@ -86,6 +112,9 @@ Rectangle {
 
             // Draw phase boundary markers
             drawPhaseMarkers(ctx, data, timeStart, timeEnd)
+
+            // Draw pressure limit line for current phase
+            drawPressureLimit(ctx, data, timeStart, timeEnd)
         }
 
         function drawGrid(ctx, timeStart, timeEnd) {
@@ -173,7 +202,6 @@ Rectangle {
             var timeRange = timeEnd - timeStart
             if (timeRange <= 0 || data.length < 2) return
 
-            ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.3)
             ctx.lineWidth = 1
             ctx.setLineDash([4, 4])
 
@@ -181,23 +209,92 @@ Rectangle {
             for (var i = 1; i < data.length; i++) {
                 var phase = data[i].phaseIndex || 0
                 if (phase !== prevPhase) {
-                    var t = data[i].elapsed || 0
+                    var t = data[i].timestamp || 0
                     if (t >= timeStart && t <= timeEnd) {
                         var x = leftMargin + plotW * (t - timeStart) / timeRange
+
+                        // Vertical dashed line
+                        ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.4)
                         ctx.beginPath()
                         ctx.moveTo(x, topMargin)
                         ctx.lineTo(x, topMargin + plotH)
                         ctx.stroke()
 
-                        // Phase label
-                        ctx.fillStyle = App.Theme.textSecondary.toString()
-                        ctx.font = "9px sans-serif"
+                        // Phase label with background
+                        ctx.fillStyle = Qt.rgba(0, 0, 0, 0.6)
+                        ctx.fillRect(x - 12, topMargin - 14, 24, 13)
+                        ctx.fillStyle = "#ffffff"
+                        ctx.font = "bold 9px sans-serif"
                         ctx.textAlign = "center"
                         ctx.fillText("P" + (phase + 1), x, topMargin - 4)
                     }
                     prevPhase = phase
                 }
             }
+            ctx.setLineDash([])
+        }
+
+        function drawPressureLimit(ctx, data, timeStart, timeEnd) {
+            var timeRange = timeEnd - timeStart
+            if (timeRange <= 0 || !root.loadedProtocol || root.loadedProtocol.length === 0) return
+
+            ctx.lineWidth = 1
+            ctx.setLineDash([6, 3])
+            ctx.strokeStyle = Qt.rgba(1, 0.3, 0.3, 0.6)
+
+            // Walk through data, drawing a horizontal line at the pressure limit for each phase
+            var prevPhase = -1
+            var segStartX = -1
+            var segLimit = -1
+
+            for (var i = 0; i < data.length; i++) {
+                var t = data[i].timestamp || 0
+                if (t < timeStart) { prevPhase = data[i].phaseIndex || 0; continue }
+                if (t > timeEnd) break
+
+                var phase = data[i].phaseIndex || 0
+                if (phase !== prevPhase) {
+                    // Close previous segment
+                    if (segLimit > 0 && segStartX >= 0) {
+                        var xEnd = leftMargin + plotW * (t - timeStart) / timeRange
+                        var yLine = topMargin + plotH * (1 - Math.min(segLimit / maxPressure, 1.0))
+                        ctx.beginPath()
+                        ctx.moveTo(segStartX, yLine)
+                        ctx.lineTo(xEnd, yLine)
+                        ctx.stroke()
+                    }
+                    // Start new segment
+                    prevPhase = phase
+                    segStartX = leftMargin + plotW * (t - timeStart) / timeRange
+                    segLimit = (phase >= 0 && phase < root.loadedProtocol.length)
+                               ? (root.loadedProtocol[phase].pressureLimit || 0)
+                               : 0
+                } else if (prevPhase === -1) {
+                    // First visible point
+                    prevPhase = phase
+                    segStartX = leftMargin + plotW * (t - timeStart) / timeRange
+                    segLimit = (phase >= 0 && phase < root.loadedProtocol.length)
+                               ? (root.loadedProtocol[phase].pressureLimit || 0)
+                               : 0
+                }
+            }
+
+            // Draw final segment to end of visible area
+            if (segLimit > 0 && segStartX >= 0) {
+                var yFinal = topMargin + plotH * (1 - Math.min(segLimit / maxPressure, 1.0))
+                ctx.beginPath()
+                ctx.moveTo(segStartX, yFinal)
+                ctx.lineTo(leftMargin + plotW, yFinal)
+                ctx.stroke()
+
+                // Label
+                ctx.setLineDash([])
+                ctx.fillStyle = Qt.rgba(1, 0.3, 0.3, 0.8)
+                ctx.font = "9px sans-serif"
+                ctx.textAlign = "right"
+                ctx.fillText(segLimit + " psi limit", leftMargin + plotW - 2, yFinal - 3)
+            }
+
             ctx.setLineDash([])
         }
     }

@@ -257,6 +257,7 @@ void InjectorBridge::handleTelemetry(
         emit injectorStateChanged();
     }
 
+    // Always pass through values from backend telemetry
     targetFlowRate_ = targetFlow;
     actualFlowRate_ = actualFlow;
     pressure_ = pres;
@@ -267,9 +268,9 @@ void InjectorBridge::handleTelemetry(
     contrastRemaining_ = contrastRemain;
     salineRemaining_ = salineRemain;
 
-    // Elapsed time: only runs during Injecting/Paused, resets on Idle/Armed
+    // Elapsed time: runs during Injecting/Completed/Fault, frozen on Pause, resets on Idle/Armed
     auto protoState = static_cast<::injector::InjectorState>(state);
-    if (protoState == ::injector::INJECTING) {
+    if (protoState == ::injector::INJECTING || protoState == ::injector::COMPLETED || protoState == ::injector::FAULT) {
         if (injectionStartTime_ < 0.0) {
             injectionStartTime_ = elapsed;  // record when injection began
         }
@@ -284,7 +285,6 @@ void InjectorBridge::handleTelemetry(
             emit telemetryHistoryChanged();
         }
     }
-    // Completed/Fault: keep showing final elapsed
 
     telemetryDirty_ = true; // Timer will emit telemetryChanged
 
