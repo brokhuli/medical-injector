@@ -67,6 +67,7 @@ Rectangle {
                     Rectangle {
                         width: {
                             if (phaseVol <= 0) return 0
+                            if (root.isPreInjection) return 0
                             // Approximate: before current phase = full, current = partial, after = 0
                             if (index < currentPhase) return parent.width
                             if (index > currentPhase) return 0
