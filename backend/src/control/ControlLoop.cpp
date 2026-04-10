@@ -114,6 +114,7 @@ void ControlLoop::run() {
     int lastPhaseIndex = -1;
     double phaseVolumeDelivered = 0.0;
     bool phaseCompletePosted = false;
+    bool decelLatched = false;
 
     while (running_.load(std::memory_order_acquire)) {
         auto tickStart = std::chrono::steady_clock::now();
@@ -152,42 +153,41 @@ void ControlLoop::run() {
         }
 
         // 5. Run PID → commanded RPM
-        //    Ramp down flow before phase volume is fully delivered so we
-        //    decelerate smoothly to 0 exactly when target volume is reached.
+        //    Trigger end-of-phase decel when the remaining volume falls
+        //    below the volume that would be delivered if we decelerated
+        //    from the current actual flow to 0 right now.
         double commandedRpm = 0.0;
         if (injecting) {
             double adjustedTarget = target;
 
-            // Smooth end-of-phase ramp: linearly reduce target flow to 0 over
-            // the last portion of phase volume so the motor reaches 0 flow
-            // right as the target volume is delivered.
-            // Ramp window = target_flow * rampTime / 2  (area of triangle)
-            // With rampTime ~1s at 4 mL/s, window = 2 mL.
+            // End-of-phase decel trigger based on current actual flow.
+            //
+            // decelVolume(v) — volume delivered while decelerating from v→0:
+            //   1) PID acceleration-limited linear decel: v² / (2·decelRate)
+            //   2) Motor first-order lag tail:            v·τ
+            //
+            // Once triggered we LATCH for the rest of the phase. Without the
+            // latch, after trigger `remaining` drops slower than `decelVolume`
+            // (rate difference = a·τ), so a plain inequality check would
+            // flip-flop between full target and zero each tick.
             if (targets_) {
                 int phaseIndex = targets_->activePhaseIndex.load(std::memory_order_acquire);
                 double phaseTarget = targets_->currentPhaseVolumeTarget.load(
                     std::memory_order_acquire);
                 if (phaseIndex >= 0 && phaseTarget > 0.0) {
-                    double remaining = phaseTarget - phaseVolumeDelivered;
-                    // Ramp window: volume consumed during decel from full speed to 0.
-                    // Two contributions:
-                    //   1) PID linear ramp: triangle area = flow² / (2 * decelRate)
-                    //   2) Motor exponential lag tail: flow * tau (first-order response)
-                    // The motor doesn't stop instantly when commanded to — it
-                    // continues delivering ~flow*tau of extra volume as it decays.
-                    double decelRate = config_.pid.maxAcceleration;
-                    double tau = config_.motorTimeConstantS;
-                    double rampWindow = (target * target) / (2.0 * decelRate) + target * tau;
-                    if (remaining < rampWindow && rampWindow > 0.0) {
-                        // Quadratic profile: fraction² gives a convex (concave-down)
-                        // curve that commands faster initial deceleration.  This
-                        // compensates for the motor lag which keeps actual flow
-                        // above the commanded value during decel.
-                        double fraction = remaining / rampWindow;
-                        double maxFlow = target * fraction * fraction;
-                        if (maxFlow < adjustedTarget) {
-                            adjustedTarget = (maxFlow > 0.0) ? maxFlow : 0.0;
+                    if (!decelLatched) {
+                        double remaining = phaseTarget - phaseVolumeDelivered;
+                        double decelRate = config_.pid.maxAcceleration;
+                        double tau = config_.motorTimeConstantS;
+                        double decelVolume =
+                            (actualFlowRate * actualFlowRate) / (2.0 * decelRate) +
+                            actualFlowRate * tau;
+                        if (remaining <= decelVolume) {
+                            decelLatched = true;
                         }
+                    }
+                    if (decelLatched) {
+                        adjustedTarget = 0.0;
                     }
                 }
             }
@@ -226,6 +226,7 @@ void ControlLoop::run() {
                 lastPhaseIndex = phaseIndex;
                 phaseVolumeDelivered = 0.0;
                 phaseCompletePosted = false;
+                decelLatched = false;
             }
 
             if (phaseIndex >= 0 && phaseTarget > 0.0 && !phaseCompletePosted) {
