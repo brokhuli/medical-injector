@@ -57,6 +57,8 @@ void validate(Config& cfg) {
     cfg.pid.iTermMax = requirePositive(cfg.pid.iTermMax, "pid.iTermMax");
     cfg.pid.maxRpm = requirePositive(cfg.pid.maxRpm, "pid.maxRpm");
     cfg.pid.maxAcceleration = requirePositive(cfg.pid.maxAcceleration, "pid.maxAcceleration");
+    cfg.pid.phaseTransitionPauseMs = requireNonNegative(
+        cfg.pid.phaseTransitionPauseMs, "pid.phaseTransitionPauseMs");
 
     // Safety
     cfg.safety.defaultPressureLimitPsi = clamp(cfg.safety.defaultPressureLimitPsi,
@@ -77,6 +79,8 @@ void validate(Config& cfg) {
                                                "hal.tubingResistance");
     cfg.hal.baselinePressure = requireNonNegative(cfg.hal.baselinePressure,
                                                    "hal.baselinePressure");
+    cfg.hal.pressureTimeConstantMs = requireNonNegative(
+        cfg.hal.pressureTimeConstantMs, "hal.pressureTimeConstantMs");
 
     // Motor model (nested under HAL)
     if (cfg.hal.motorModel.type != "first_order" &&
@@ -135,6 +139,9 @@ Config parseJson(const nlohmann::json& j) {
         if (p.contains("maxRpm")) cfg.pid.maxRpm = p["maxRpm"].get<double>();
         if (p.contains("maxAcceleration"))
             cfg.pid.maxAcceleration = p["maxAcceleration"].get<double>();
+        if (p.contains("phaseTransitionPauseMs"))
+            cfg.pid.phaseTransitionPauseMs =
+                p["phaseTransitionPauseMs"].get<double>();
     }
 
     if (j.contains("safety")) {
@@ -159,6 +166,9 @@ Config parseJson(const nlohmann::json& j) {
             cfg.hal.tubingResistance = h["tubingResistance"].get<double>();
         if (h.contains("baselinePressure"))
             cfg.hal.baselinePressure = h["baselinePressure"].get<double>();
+        if (h.contains("pressureTimeConstantMs"))
+            cfg.hal.pressureTimeConstantMs =
+                h["pressureTimeConstantMs"].get<double>();
         if (h.contains("motorModel")) {
             auto& m = h["motorModel"];
             if (m.contains("type"))

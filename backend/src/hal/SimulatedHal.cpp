@@ -6,9 +6,10 @@ namespace injector::hal {
 
 SimulatedHal::SimulatedHal(const HalConfig& config)
     : motor_(createMotorModel(config.motorModel)),
-      pressure_(config.tubingResistance, config.baselinePressure),
+      pressure_(config.tubingResistance, config.baselinePressure,
+                config.pressureTimeConstantMs),
       syringes_(config.contrastVolumeMl, config.salineVolumeMl) {
-    currentPressure_ = pressure_.compute(0.0);
+    currentPressure_ = pressure_.filteredPressure();
 }
 
 double SimulatedHal::readPressure() const {
@@ -73,8 +74,8 @@ void SimulatedHal::tick(double dt) {
     double effectiveFlow = (contrastOpen || salineOpen) ? flowRate : 0.0;
     currentFlowRate_ = effectiveFlow;
 
-    // 5. Pressure model: compute from effective flow rate
-    currentPressure_ = pressure_.compute(effectiveFlow);
+    // 5. Pressure model: first-order lag toward compute(effectiveFlow)
+    currentPressure_ = pressure_.step(effectiveFlow, dt);
 
     // 6. Air detector: state unchanged unless fault injected (handled externally)
 }

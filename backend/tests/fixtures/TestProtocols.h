@@ -14,6 +14,7 @@ inline hal::HalConfig defaultHalConfig() {
     hal::HalConfig cfg;
     cfg.tubingResistance = 50.0;
     cfg.baselinePressure = 10.0;
+    cfg.pressureTimeConstantMs = 400.0;
     cfg.contrastVolumeMl = 100.0;
     cfg.salineVolumeMl = 50.0;
     cfg.motorModel.type = "first_order";
@@ -23,11 +24,13 @@ inline hal::HalConfig defaultHalConfig() {
     return cfg;
 }
 
-/// Fast-convergence HAL — motor reaches target in ~30 ms instead of ~150 ms.
-/// Use for integration tests that want to skip long ramp-up.
+/// Fast-convergence HAL — motor and pressure reach target in a few tens of
+/// milliseconds instead of hundreds. Use for integration tests that want to
+/// skip long ramp-up windows.
 inline hal::HalConfig fastHalConfig() {
     hal::HalConfig cfg = defaultHalConfig();
     cfg.motorModel.timeConstantMs = 10.0;
+    cfg.pressureTimeConstantMs = 10.0;
     return cfg;
 }
 

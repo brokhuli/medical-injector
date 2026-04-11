@@ -17,6 +17,10 @@ namespace injector::hal {
 struct HalConfig {
     double tubingResistance = 50.0;
     double baselinePressure = 10.0;
+    /// First-order lag applied to the pressure model (tubing/syringe/patient
+    /// compliance). Pressure rises/falls toward the steady-state target with
+    /// this time constant.
+    double pressureTimeConstantMs = 400.0;
     double contrastVolumeMl = 100.0;
     double salineVolumeMl = 50.0;
     MotorModelConfig motorModel;

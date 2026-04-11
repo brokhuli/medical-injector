@@ -116,6 +116,13 @@ void ControlLoop::run() {
     bool phaseCompletePosted = false;
     bool decelLatched = false;
 
+    // Phase-transition pause: when the active phase flips to a new index we
+    // briefly command zero flow so the pressure-lag model produces a visible
+    // dip in the trace. Duration is configured via pid.phaseTransitionPauseMs.
+    double phaseTransitionPauseRemainingS = 0.0;
+    const double phaseTransitionPauseDurationS =
+        config_.pid.phaseTransitionPauseMs / 1000.0;
+
     while (running_.load(std::memory_order_acquire)) {
         auto tickStart = std::chrono::steady_clock::now();
 
@@ -152,6 +159,28 @@ void ControlLoop::run() {
             injecting = (target > 0.0);
         }
 
+        // 4b. Phase-transition detection: reset per-phase state when the
+        //     active phase index changes. Runs before PID so the zero-target
+        //     pause and ramped-target reset take effect on the same tick the
+        //     transition is observed.
+        if (targets_ && injecting) {
+            int phaseIdx = targets_->activePhaseIndex.load(std::memory_order_acquire);
+            if (phaseIdx != lastPhaseIndex) {
+                // Transition into a new phase (or first entry). lastPhaseIndex
+                // starts at -1; only trigger the dip pause on a real change
+                // between two valid phases, not on initial entry.
+                if (lastPhaseIndex >= 0 && phaseIdx >= 0 &&
+                    phaseTransitionPauseDurationS > 0.0) {
+                    phaseTransitionPauseRemainingS = phaseTransitionPauseDurationS;
+                    pid_.resetRampedTarget(0.0);
+                }
+                lastPhaseIndex = phaseIdx;
+                phaseVolumeDelivered = 0.0;
+                phaseCompletePosted = false;
+                decelLatched = false;
+            }
+        }
+
         // 5. Run PID → commanded RPM
         //    Trigger end-of-phase decel when the remaining volume falls
         //    below the volume that would be delivered if we decelerated
@@ -159,6 +188,14 @@ void ControlLoop::run() {
         double commandedRpm = 0.0;
         if (injecting) {
             double adjustedTarget = target;
+
+            // Phase-transition pause: force zero target for a short window so
+            // the pressure-lag model sags toward baseline, producing a small
+            // visible dip between phases.
+            if (phaseTransitionPauseRemainingS > 0.0) {
+                adjustedTarget = 0.0;
+                phaseTransitionPauseRemainingS -= dtSeconds;
+            }
 
             // End-of-phase decel trigger based on current actual flow.
             // The HAL owns the motor model and predicts how much volume
@@ -211,19 +248,12 @@ void ControlLoop::run() {
                      actualFlowRate * dtSeconds;
         cumulativeVolume_.store(vol, std::memory_order_relaxed);
 
-        // 8b. Phase volume tracking — detect completion and post PhaseComplete
+        // 8b. Phase volume tracking — detect completion and post PhaseComplete.
+        //     Phase index changes and state resets are handled in step 4b.
         if (targets_ && commandQueue_ && injecting) {
             int phaseIndex = targets_->activePhaseIndex.load(std::memory_order_acquire);
             double phaseTarget = targets_->currentPhaseVolumeTarget.load(
                 std::memory_order_acquire);
-
-            // Reset per-phase accumulator when phase index changes
-            if (phaseIndex != lastPhaseIndex) {
-                lastPhaseIndex = phaseIndex;
-                phaseVolumeDelivered = 0.0;
-                phaseCompletePosted = false;
-                decelLatched = false;
-            }
 
             if (phaseIndex >= 0 && phaseTarget > 0.0 && !phaseCompletePosted) {
                 phaseVolumeDelivered += actualFlowRate * dtSeconds;

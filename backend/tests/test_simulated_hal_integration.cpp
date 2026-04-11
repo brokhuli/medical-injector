@@ -14,6 +14,10 @@ protected:
     std::unique_ptr<SimulatedHal> hal;
 
     void SetUp() override {
+        // Use a short pressure time constant so existing integration checks
+        // that run for ~1 s reach the instantaneous target. The user-facing
+        // default (400 ms) is exercised separately in test_pressure_model.
+        config.pressureTimeConstantMs = 10.0;
         hal = std::make_unique<SimulatedHal>(config);
     }
 };
@@ -99,9 +103,12 @@ TEST_F(SimulatedHalTest, EmergencyStop) {
     hal->emergencyStop();
     EXPECT_DOUBLE_EQ(hal->readMotorRpm(), 0.0);
 
-    // After emergency stop, tick should show zero flow and baseline pressure
-    hal->tick(kDt);
-    EXPECT_NEAR(hal->readPressure(), 10.0, 0.01);
+    // After emergency stop, flow is instantly zero but pressure decays
+    // through the compliance lag. Run long enough (~20 tau) to reach baseline.
+    for (int i = 0; i < 100; ++i) {
+        hal->tick(kDt);
+    }
+    EXPECT_NEAR(hal->readPressure(), 10.0, 0.1);
     EXPECT_NEAR(hal->currentFlowRate(), 0.0, 0.01);
 }
 
