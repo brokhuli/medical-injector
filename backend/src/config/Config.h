@@ -1,5 +1,7 @@
 #pragma once
 
+#include "hal/MotorModelConfig.h"
+
 #include <string>
 
 namespace injector::config {
@@ -33,11 +35,9 @@ struct SafetyConfig {
 };
 
 struct HalConfig {
-    double flowPerRpm = 0.01;
     double tubingResistance = 50.0;
     double baselinePressure = 10.0;
-    double motorTimeConstantMs = 50.0;
-    double motorMaxRpm = 1500.0;
+    hal::MotorModelConfig motorModel;
 };
 
 struct SyringeConfig {

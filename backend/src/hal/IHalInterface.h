@@ -43,6 +43,18 @@ public:
     virtual void tick(double dt) = 0;
     virtual void injectFault(const SimulatedFault& fault) = 0;
     virtual void clearFaults() = 0;
+
+    // Prediction hooks (controller-facing, implementation-private)
+
+    /// Predict the volume (mL) that will be delivered between now and when
+    /// the motor fully stops, assuming the commanded flow begins decelerating
+    /// linearly at `commandDecelRate` (mL/s²) from the current motor state.
+    ///
+    /// Used by the control loop to decide when to trigger end-of-phase
+    /// deceleration. Encapsulates motor-specific dynamics so the control
+    /// loop does not need to know whether the HAL drives a first-order
+    /// motor, a second-order motor, or real hardware.
+    virtual double predictDecelVolume(double commandDecelRate) const = 0;
 };
 
 }  // namespace injector::hal

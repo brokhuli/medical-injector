@@ -161,15 +161,14 @@ void ControlLoop::run() {
             double adjustedTarget = target;
 
             // End-of-phase decel trigger based on current actual flow.
-            //
-            // decelVolume(v) — volume delivered while decelerating from v→0:
-            //   1) PID acceleration-limited linear decel: v² / (2·decelRate)
-            //   2) Motor first-order lag tail:            v·τ
+            // The HAL owns the motor model and predicts how much volume
+            // would be delivered if we decelerated from the current flow
+            // to zero at the given decel rate.
             //
             // Once triggered we LATCH for the rest of the phase. Without the
             // latch, after trigger `remaining` drops slower than `decelVolume`
-            // (rate difference = a·τ), so a plain inequality check would
-            // flip-flop between full target and zero each tick.
+            // so a plain inequality check would flip-flop between full target
+            // and zero each tick.
             if (targets_) {
                 int phaseIndex = targets_->activePhaseIndex.load(std::memory_order_acquire);
                 double phaseTarget = targets_->currentPhaseVolumeTarget.load(
@@ -177,11 +176,8 @@ void ControlLoop::run() {
                 if (phaseIndex >= 0 && phaseTarget > 0.0) {
                     if (!decelLatched) {
                         double remaining = phaseTarget - phaseVolumeDelivered;
-                        double decelRate = config_.pid.maxAcceleration;
-                        double tau = config_.motorTimeConstantS;
                         double decelVolume =
-                            (actualFlowRate * actualFlowRate) / (2.0 * decelRate) +
-                            actualFlowRate * tau;
+                            hal_->predictDecelVolume(config_.pid.maxAcceleration);
                         if (remaining <= decelVolume) {
                             decelLatched = true;
                         }

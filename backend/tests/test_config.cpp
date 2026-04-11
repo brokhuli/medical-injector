@@ -23,11 +23,11 @@ TEST(ConfigTest, DefaultValues) {
     EXPECT_EQ(cfg.safety.motorDivergenceTicks, 25);
     EXPECT_DOUBLE_EQ(cfg.safety.jitterToleranceMs, 30.0);
     EXPECT_EQ(cfg.safety.tickRateMs, 1);
-    EXPECT_DOUBLE_EQ(cfg.hal.flowPerRpm, 0.01);
+    EXPECT_DOUBLE_EQ(cfg.hal.motorModel.flowPerRpm, 0.01);
     EXPECT_DOUBLE_EQ(cfg.hal.tubingResistance, 50.0);
     EXPECT_DOUBLE_EQ(cfg.hal.baselinePressure, 10.0);
-    EXPECT_DOUBLE_EQ(cfg.hal.motorTimeConstantMs, 50.0);
-    EXPECT_DOUBLE_EQ(cfg.hal.motorMaxRpm, 1500.0);
+    EXPECT_DOUBLE_EQ(cfg.hal.motorModel.timeConstantMs, 50.0);
+    EXPECT_DOUBLE_EQ(cfg.hal.motorModel.maxRpm, 1500.0);
     EXPECT_DOUBLE_EQ(cfg.syringe.contrastVolumeMl, 100.0);
     EXPECT_DOUBLE_EQ(cfg.syringe.salineVolumeMl, 50.0);
     EXPECT_EQ(cfg.logging.ringBufferSize, 300000);
@@ -40,17 +40,17 @@ TEST(ConfigTest, ParseEmptyJson) {
 
     EXPECT_EQ(cfg.server.port, def.server.port);
     EXPECT_DOUBLE_EQ(cfg.pid.kp, def.pid.kp);
-    EXPECT_DOUBLE_EQ(cfg.hal.flowPerRpm, def.hal.flowPerRpm);
+    EXPECT_DOUBLE_EQ(cfg.hal.motorModel.flowPerRpm, def.hal.motorModel.flowPerRpm);
 }
 
 TEST(ConfigTest, ParsePartialJson) {
     Config cfg = Config::loadFromString(R"({
         "server": { "port": 9090 },
-        "hal": { "flowPerRpm": 0.02 }
+        "hal": { "motorModel": { "flowPerRpm": 0.02 } }
     })");
 
     EXPECT_EQ(cfg.server.port, 9090);
-    EXPECT_DOUBLE_EQ(cfg.hal.flowPerRpm, 0.02);
+    EXPECT_DOUBLE_EQ(cfg.hal.motorModel.flowPerRpm, 0.02);
     // Unspecified fields keep defaults
     EXPECT_EQ(cfg.server.telemetryRateMs, 50);
     EXPECT_DOUBLE_EQ(cfg.hal.tubingResistance, 50.0);
@@ -62,7 +62,7 @@ TEST(ConfigTest, ParseFullJson) {
         "control": { "tickRateMs": 5, "pinCore": false },
         "pid": { "kp": 200.0, "ki": 25.0, "kd": 10.0, "iTermMax": 1000.0, "maxRpm": 2000.0, "maxAcceleration": 20.0 },
         "safety": { "defaultPressureLimitPsi": 300.0, "motorDivergenceThreshold": 100.0, "motorDivergenceTicks": 50, "jitterToleranceMs": 5.0, "tickRateMs": 2 },
-        "hal": { "flowPerRpm": 0.02, "tubingResistance": 75.0, "baselinePressure": 15.0, "motorTimeConstantMs": 100.0, "motorMaxRpm": 2000.0 },
+        "hal": { "tubingResistance": 75.0, "baselinePressure": 15.0, "motorModel": { "type": "first_order", "flowPerRpm": 0.02, "timeConstantMs": 100.0, "maxRpm": 2000.0 } },
         "syringe": { "contrastVolumeMl": 150.0, "salineVolumeMl": 75.0 },
         "logging": { "ringBufferSize": 500000, "maxEvents": 50000 }
     })");
@@ -103,7 +103,7 @@ TEST(ConfigTest, RejectInvalidValues) {
                  std::invalid_argument);
 
     // Zero flowPerRpm
-    EXPECT_THROW(Config::loadFromString(R"({"hal": {"flowPerRpm": 0.0}})"),
+    EXPECT_THROW(Config::loadFromString(R"({"hal": {"motorModel": {"flowPerRpm": 0.0}}})"),
                  std::invalid_argument);
 
     // Negative ki is fine (requireNonNegative), but -1 is not
@@ -120,7 +120,7 @@ TEST(ConfigTest, MissingFileReturnsDefaults) {
     Config def = Config::defaults();
 
     EXPECT_EQ(cfg.server.port, def.server.port);
-    EXPECT_DOUBLE_EQ(cfg.hal.flowPerRpm, def.hal.flowPerRpm);
+    EXPECT_DOUBLE_EQ(cfg.hal.motorModel.flowPerRpm, def.hal.motorModel.flowPerRpm);
 }
 
 TEST(ConfigTest, InvalidJsonThrows) {

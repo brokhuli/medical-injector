@@ -18,6 +18,7 @@ public:
     MOCK_METHOD(void, tick, (double dt), (override));
     MOCK_METHOD(void, injectFault, (const hal::SimulatedFault& fault), (override));
     MOCK_METHOD(void, clearFaults, (), (override));
+    MOCK_METHOD(double, predictDecelVolume, (double commandDecelRate), (const, override));
 };
 
 }  // namespace injector::testing

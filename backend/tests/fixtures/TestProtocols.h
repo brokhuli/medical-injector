@@ -12,13 +12,14 @@ namespace injector::testing {
 /// Default HAL — matches config defaults.
 inline hal::HalConfig defaultHalConfig() {
     hal::HalConfig cfg;
-    cfg.flowPerRpm = 0.01;
     cfg.tubingResistance = 50.0;
     cfg.baselinePressure = 10.0;
-    cfg.motorTimeConstantMs = 50.0;
-    cfg.motorMaxRpm = 1500.0;
     cfg.contrastVolumeMl = 100.0;
     cfg.salineVolumeMl = 50.0;
+    cfg.motorModel.type = "first_order";
+    cfg.motorModel.flowPerRpm = 0.01;
+    cfg.motorModel.maxRpm = 1500.0;
+    cfg.motorModel.timeConstantMs = 50.0;
     return cfg;
 }
 
@@ -26,7 +27,7 @@ inline hal::HalConfig defaultHalConfig() {
 /// Use for integration tests that want to skip long ramp-up.
 inline hal::HalConfig fastHalConfig() {
     hal::HalConfig cfg = defaultHalConfig();
-    cfg.motorTimeConstantMs = 10.0;
+    cfg.motorModel.timeConstantMs = 10.0;
     return cfg;
 }
 
@@ -44,14 +45,13 @@ inline control::ControlLoopConfig defaultLoopConfig(const hal::HalConfig& hal = 
     control::ControlLoopConfig cfg;
     cfg.tickRateMs = 2;
     cfg.pinCore = false;
-    cfg.flowPerRpm = hal.flowPerRpm;
+    cfg.flowPerRpm = hal.motorModel.flowPerRpm;
     cfg.pid.kp = 100.0;
     cfg.pid.ki = 50.0;
     cfg.pid.kd = 5.0;
     cfg.pid.iTermMax = 500.0;
     cfg.pid.maxRpm = 1500.0;
     cfg.pid.maxAcceleration = 10.0;
-    cfg.motorTimeConstantS = hal.motorTimeConstantMs / 1000.0;
     return cfg;
 }
 

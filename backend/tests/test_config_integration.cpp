@@ -27,11 +27,14 @@ namespace {
 TEST(ConfigIntegration, HalReceivesConfigValues) {
     auto cfg = config::Config::loadFromString(R"({
         "hal": {
-            "flowPerRpm": 0.02,
             "tubingResistance": 80.0,
             "baselinePressure": 15.0,
-            "motorTimeConstantMs": 30.0,
-            "motorMaxRpm": 2000.0
+            "motorModel": {
+                "type": "first_order",
+                "flowPerRpm": 0.02,
+                "timeConstantMs": 30.0,
+                "maxRpm": 2000.0
+            }
         },
         "syringe": {
             "contrastVolumeMl": 150.0,
@@ -40,11 +43,9 @@ TEST(ConfigIntegration, HalReceivesConfigValues) {
     })");
 
     hal::HalConfig halCfg;
-    halCfg.flowPerRpm         = cfg.hal.flowPerRpm;
     halCfg.tubingResistance   = cfg.hal.tubingResistance;
     halCfg.baselinePressure   = cfg.hal.baselinePressure;
-    halCfg.motorTimeConstantMs = cfg.hal.motorTimeConstantMs;
-    halCfg.motorMaxRpm        = cfg.hal.motorMaxRpm;
+    halCfg.motorModel         = cfg.hal.motorModel;
     halCfg.contrastVolumeMl   = cfg.syringe.contrastVolumeMl;
     halCfg.salineVolumeMl     = cfg.syringe.salineVolumeMl;
 
@@ -75,29 +76,27 @@ TEST(ConfigIntegration, ControlLoopUsesConfiguredPidGains) {
             "maxAcceleration": 20.0
         },
         "control": { "tickRateMs": 2, "pinCore": false },
-        "hal": { "flowPerRpm": 0.01 }
+        "hal": { "motorModel": { "flowPerRpm": 0.01 } }
     })");
 
     hal::HalConfig halCfg;
-    halCfg.flowPerRpm         = cfg.hal.flowPerRpm;
     halCfg.tubingResistance   = cfg.hal.tubingResistance;
     halCfg.baselinePressure   = cfg.hal.baselinePressure;
-    halCfg.motorTimeConstantMs = cfg.hal.motorTimeConstantMs;
-    halCfg.motorMaxRpm        = cfg.pid.maxRpm;  // match PID max
+    halCfg.motorModel         = cfg.hal.motorModel;
+    halCfg.motorModel.maxRpm  = cfg.pid.maxRpm;  // match PID max
 
     auto hal = std::make_shared<hal::SimulatedHal>(halCfg);
 
     control::ControlLoopConfig loopCfg;
     loopCfg.tickRateMs      = cfg.control.tickRateMs;
     loopCfg.pinCore         = cfg.control.pinCore;
-    loopCfg.flowPerRpm      = cfg.hal.flowPerRpm;
+    loopCfg.flowPerRpm      = cfg.hal.motorModel.flowPerRpm;
     loopCfg.pid.kp          = cfg.pid.kp;
     loopCfg.pid.ki          = cfg.pid.ki;
     loopCfg.pid.kd          = cfg.pid.kd;
     loopCfg.pid.iTermMax    = cfg.pid.iTermMax;
     loopCfg.pid.maxRpm      = cfg.pid.maxRpm;
     loopCfg.pid.maxAcceleration = cfg.pid.maxAcceleration;
-    loopCfg.motorTimeConstantS  = cfg.hal.motorTimeConstantMs / 1000.0;
 
     logging::DataLogger logger;
     control::ControlLoop loop(hal, loopCfg, &logger.tickBuffer());
@@ -134,11 +133,12 @@ TEST(ConfigIntegration, SafetyMonitorUsesConfiguredPressureLimit) {
     hal::HalConfig halCfg;
     halCfg.tubingResistance = 50.0;
     halCfg.baselinePressure = 10.0;
-    halCfg.flowPerRpm = 0.01;
-    halCfg.motorTimeConstantMs = 50.0;
-    halCfg.motorMaxRpm = 1500.0;
     halCfg.contrastVolumeMl = 100.0;
     halCfg.salineVolumeMl = 50.0;
+    halCfg.motorModel.type = "first_order";
+    halCfg.motorModel.flowPerRpm = 0.01;
+    halCfg.motorModel.timeConstantMs = 50.0;
+    halCfg.motorModel.maxRpm = 1500.0;
 
     auto hal = std::make_shared<hal::SimulatedHal>(halCfg);
 
@@ -179,13 +179,14 @@ TEST(ConfigIntegration, SafetyMonitorUsesConfiguredMotorDivergence) {
     })");
 
     hal::HalConfig halCfg;
-    halCfg.flowPerRpm = 0.01;
     halCfg.tubingResistance = 50.0;
     halCfg.baselinePressure = 10.0;
-    halCfg.motorTimeConstantMs = 50.0;
-    halCfg.motorMaxRpm = 1500.0;
     halCfg.contrastVolumeMl = 100.0;
     halCfg.salineVolumeMl = 50.0;
+    halCfg.motorModel.type = "first_order";
+    halCfg.motorModel.flowPerRpm = 0.01;
+    halCfg.motorModel.timeConstantMs = 50.0;
+    halCfg.motorModel.maxRpm = 1500.0;
 
     auto hal = std::make_shared<hal::SimulatedHal>(halCfg);
 
@@ -221,11 +222,9 @@ TEST(ConfigIntegration, FullSystemUsesConfiguredSyringeVolumes) {
     })");
 
     hal::HalConfig halCfg;
-    halCfg.flowPerRpm         = cfg.hal.flowPerRpm;
     halCfg.tubingResistance   = cfg.hal.tubingResistance;
     halCfg.baselinePressure   = cfg.hal.baselinePressure;
-    halCfg.motorTimeConstantMs = cfg.hal.motorTimeConstantMs;
-    halCfg.motorMaxRpm        = cfg.hal.motorMaxRpm;
+    halCfg.motorModel         = cfg.hal.motorModel;
     halCfg.contrastVolumeMl   = cfg.syringe.contrastVolumeMl;
     halCfg.salineVolumeMl     = cfg.syringe.salineVolumeMl;
 
@@ -248,11 +247,9 @@ TEST(ConfigIntegration, DefaultConfigProducesValidSystem) {
     auto cfg = config::Config::defaults();
 
     hal::HalConfig halCfg;
-    halCfg.flowPerRpm         = cfg.hal.flowPerRpm;
     halCfg.tubingResistance   = cfg.hal.tubingResistance;
     halCfg.baselinePressure   = cfg.hal.baselinePressure;
-    halCfg.motorTimeConstantMs = cfg.hal.motorTimeConstantMs;
-    halCfg.motorMaxRpm        = cfg.hal.motorMaxRpm;
+    halCfg.motorModel         = cfg.hal.motorModel;
     halCfg.contrastVolumeMl   = cfg.syringe.contrastVolumeMl;
     halCfg.salineVolumeMl     = cfg.syringe.salineVolumeMl;
 

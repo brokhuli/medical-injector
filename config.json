@@ -24,11 +24,14 @@
         "controlLoopTickRateMs": 2
     },
     "hal": {
-        "flowPerRpm": 0.01,
         "tubingResistance": 50.0,
         "baselinePressure": 10.0,
-        "motorTimeConstantMs": 50.0,
-        "motorMaxRpm": 1500.0
+        "motorModel": {
+            "type": "first_order",
+            "flowPerRpm": 0.01,
+            "maxRpm": 1500.0,
+            "timeConstantMs": 50.0
+        }
     },
     "syringe": {
         "contrastVolumeMl": 100.0,

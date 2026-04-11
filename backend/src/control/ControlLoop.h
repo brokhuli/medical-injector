@@ -45,7 +45,6 @@ struct ControlLoopConfig {
     int tickRateMs = 2;
     bool pinCore = true;
     double flowPerRpm = 0.01;  // HAL's RPM-to-flow conversion factor
-    double motorTimeConstantS = 0.05;  // Motor first-order lag (seconds)
     PidConfig pid;
 };
 

@@ -73,14 +73,29 @@ void validate(Config& cfg) {
     cfg.safety.tickRateMs = clamp(cfg.safety.tickRateMs, 1, 10, "safety.tickRateMs");
 
     // HAL
-    cfg.hal.flowPerRpm = requirePositive(cfg.hal.flowPerRpm, "hal.flowPerRpm");
     cfg.hal.tubingResistance = requirePositive(cfg.hal.tubingResistance,
                                                "hal.tubingResistance");
     cfg.hal.baselinePressure = requireNonNegative(cfg.hal.baselinePressure,
                                                    "hal.baselinePressure");
-    cfg.hal.motorTimeConstantMs = requirePositive(cfg.hal.motorTimeConstantMs,
-                                                   "hal.motorTimeConstantMs");
-    cfg.hal.motorMaxRpm = requirePositive(cfg.hal.motorMaxRpm, "hal.motorMaxRpm");
+
+    // Motor model (nested under HAL)
+    if (cfg.hal.motorModel.type != "first_order" &&
+        cfg.hal.motorModel.type != "second_order") {
+        throw std::invalid_argument(
+            "Config field 'hal.motorModel.type' must be 'first_order' or "
+            "'second_order', got '" + cfg.hal.motorModel.type + "'");
+    }
+    cfg.hal.motorModel.flowPerRpm = requirePositive(
+        cfg.hal.motorModel.flowPerRpm, "hal.motorModel.flowPerRpm");
+    cfg.hal.motorModel.maxRpm = requirePositive(
+        cfg.hal.motorModel.maxRpm, "hal.motorModel.maxRpm");
+    cfg.hal.motorModel.timeConstantMs = requirePositive(
+        cfg.hal.motorModel.timeConstantMs, "hal.motorModel.timeConstantMs");
+    cfg.hal.motorModel.naturalFrequencyHz = requirePositive(
+        cfg.hal.motorModel.naturalFrequencyHz,
+        "hal.motorModel.naturalFrequencyHz");
+    cfg.hal.motorModel.dampingRatio = requirePositive(
+        cfg.hal.motorModel.dampingRatio, "hal.motorModel.dampingRatio");
 
     // Syringe
     cfg.syringe.contrastVolumeMl = clamp(cfg.syringe.contrastVolumeMl, 1.0, 500.0,
@@ -140,15 +155,28 @@ Config parseJson(const nlohmann::json& j) {
 
     if (j.contains("hal")) {
         auto& h = j["hal"];
-        if (h.contains("flowPerRpm")) cfg.hal.flowPerRpm = h["flowPerRpm"].get<double>();
         if (h.contains("tubingResistance"))
             cfg.hal.tubingResistance = h["tubingResistance"].get<double>();
         if (h.contains("baselinePressure"))
             cfg.hal.baselinePressure = h["baselinePressure"].get<double>();
-        if (h.contains("motorTimeConstantMs"))
-            cfg.hal.motorTimeConstantMs = h["motorTimeConstantMs"].get<double>();
-        if (h.contains("motorMaxRpm"))
-            cfg.hal.motorMaxRpm = h["motorMaxRpm"].get<double>();
+        if (h.contains("motorModel")) {
+            auto& m = h["motorModel"];
+            if (m.contains("type"))
+                cfg.hal.motorModel.type = m["type"].get<std::string>();
+            if (m.contains("flowPerRpm"))
+                cfg.hal.motorModel.flowPerRpm = m["flowPerRpm"].get<double>();
+            if (m.contains("maxRpm"))
+                cfg.hal.motorModel.maxRpm = m["maxRpm"].get<double>();
+            if (m.contains("timeConstantMs"))
+                cfg.hal.motorModel.timeConstantMs =
+                    m["timeConstantMs"].get<double>();
+            if (m.contains("naturalFrequencyHz"))
+                cfg.hal.motorModel.naturalFrequencyHz =
+                    m["naturalFrequencyHz"].get<double>();
+            if (m.contains("dampingRatio"))
+                cfg.hal.motorModel.dampingRatio =
+                    m["dampingRatio"].get<double>();
+        }
     }
 
     if (j.contains("syringe")) {

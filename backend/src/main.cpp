@@ -34,13 +34,11 @@ int main(int argc, char* argv[]) {
 
     // ── HAL ──────────────────────────────────────────────────────────────────
     injector::hal::HalConfig halCfg;
-    halCfg.flowPerRpm         = cfg.hal.flowPerRpm;
     halCfg.tubingResistance   = cfg.hal.tubingResistance;
     halCfg.baselinePressure   = cfg.hal.baselinePressure;
-    halCfg.motorTimeConstantMs = cfg.hal.motorTimeConstantMs;
-    halCfg.motorMaxRpm        = cfg.hal.motorMaxRpm;
     halCfg.contrastVolumeMl   = cfg.syringe.contrastVolumeMl;
     halCfg.salineVolumeMl     = cfg.syringe.salineVolumeMl;
+    halCfg.motorModel         = cfg.hal.motorModel;
 
     auto hal = std::make_shared<injector::hal::SimulatedHal>(halCfg);
 
@@ -68,14 +66,13 @@ int main(int argc, char* argv[]) {
     injector::control::ControlLoopConfig loopCfg;
     loopCfg.tickRateMs      = cfg.control.tickRateMs;
     loopCfg.pinCore         = cfg.control.pinCore;
-    loopCfg.flowPerRpm      = cfg.hal.flowPerRpm;
+    loopCfg.flowPerRpm      = cfg.hal.motorModel.flowPerRpm;
     loopCfg.pid.kp          = cfg.pid.kp;
     loopCfg.pid.ki          = cfg.pid.ki;
     loopCfg.pid.kd          = cfg.pid.kd;
     loopCfg.pid.iTermMax    = cfg.pid.iTermMax;
     loopCfg.pid.maxRpm      = cfg.pid.maxRpm;
     loopCfg.pid.maxAcceleration = cfg.pid.maxAcceleration;
-    loopCfg.motorTimeConstantS  = cfg.hal.motorTimeConstantMs / 1000.0;
 
     injector::control::ControlLoop controlLoop(
         hal, loopCfg, &logger.tickBuffer(), &targets, &commandQueue, &telemetry);

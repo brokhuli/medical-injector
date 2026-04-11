@@ -2,24 +2,24 @@
 
 #include "hal/AirDetectorModel.h"
 #include "hal/IHalInterface.h"
-#include "hal/MotorModel.h"
+#include "hal/IMotorModel.h"
+#include "hal/MotorModelConfig.h"
 #include "hal/PressureModel.h"
 #include "hal/SyringeModel.h"
 #include "hal/ValveModel.h"
 
 #include <atomic>
+#include <memory>
 #include <mutex>
 
 namespace injector::hal {
 
 struct HalConfig {
-    double flowPerRpm = 0.01;
     double tubingResistance = 50.0;
     double baselinePressure = 10.0;
-    double motorTimeConstantMs = 50.0;
-    double motorMaxRpm = 1500.0;
     double contrastVolumeMl = 100.0;
     double salineVolumeMl = 50.0;
+    MotorModelConfig motorModel;
 };
 
 class SimulatedHal : public IHalInterface {
@@ -42,12 +42,15 @@ public:
     void injectFault(const SimulatedFault& fault) override;
     void clearFaults() override;
 
+    // Controller-facing prediction (delegates to motor model)
+    double predictDecelVolume(double commandDecelRate) const override;
+
     // Additional accessors for telemetry
     double currentFlowRate() const;
 
 private:
     mutable std::mutex stateMutex_;
-    MotorModel motor_;
+    std::unique_ptr<IMotorModel> motor_;
     PressureModel pressure_;
     ValveModel valves_;
     SyringeModel syringes_;
