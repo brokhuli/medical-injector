@@ -7,20 +7,12 @@ Rectangle {
 
     property var bridge: injectorBridge
 
-    readonly property double _rawDelivered: bridge.totalVolumeDelivered
+    readonly property double totalDelivered: bridge.totalVolumeDelivered
     readonly property double totalProgrammed: bridge.totalProgrammedVolume
     readonly property int currentPhase: bridge.phaseIndex
     readonly property var phases: bridge.loadedProtocol
+    readonly property var volPerPhase: bridge.volumePerPhase
     readonly property bool isPreInjection: bridge.injectorState === "Idle" || bridge.injectorState === "Armed"
-
-    // Track volume at injection start so we use the delta for this run
-    property double _volAtStart: 0
-    onIsPreInjectionChanged: {
-        if (!isPreInjection) {
-            _volAtStart = _rawDelivered
-        }
-    }
-    readonly property double totalDelivered: isPreInjection ? 0 : Math.max(0, _rawDelivered - _volAtStart)
 
     implicitHeight: col.implicitHeight
     color: "transparent"
@@ -68,17 +60,10 @@ Rectangle {
                         width: {
                             if (phaseVol <= 0) return 0
                             if (root.isPreInjection) return 0
-                            // Approximate: before current phase = full, current = partial, after = 0
-                            if (index < currentPhase) return parent.width
-                            if (index > currentPhase) return 0
-                            // Current phase: estimate from total delivered minus prior phases
-                            var prior = 0
-                            for (var i = 0; i < index; i++) {
-                                var p = phases[i]
-                                if (p) prior += (p.volume || 0)
-                            }
-                            var phaseDelivered = Math.max(0, totalDelivered - prior)
-                            return parent.width * Math.min(phaseDelivered / phaseVol, 1.0)
+                            const delivered = (volPerPhase && index < volPerPhase.length)
+                                              ? volPerPhase[index]
+                                              : 0
+                            return parent.width * Math.min(delivered / phaseVol, 1.0)
                         }
                         height: parent.height
                         radius: 3

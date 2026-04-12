@@ -116,6 +116,18 @@ void ControlLoop::run() {
     bool phaseCompletePosted = false;
     bool decelLatched = false;
 
+    // Elapsed-time tracking: the reported value is "seconds since INJECTING
+    // entry", frozen while PAUSED, and zero in IDLE/ARMED. The backend is the
+    // authoritative source — the frontend displays snap.elapsedTime verbatim.
+    double injectionStartTimestampS = -1.0;
+    double frozenElapsedS = 0.0;
+
+    // Per-phase delivered-volume vector streamed over telemetry so the
+    // frontend does not need to reconstruct it from total volume + phase
+    // targets. Cleared when state returns to IDLE/ARMED.
+    std::vector<double> volumePerPhase;
+    int lastObservedState = -1;
+
     while (running_.load(std::memory_order_acquire)) {
         auto tickStart = std::chrono::steady_clock::now();
 
@@ -152,18 +164,51 @@ void ControlLoop::run() {
             injecting = (target > 0.0);
         }
 
+        // 4a. State-change observation: when state returns to IDLE/ARMED we
+        //     clear the per-phase volume vector and other per-run state so a
+        //     fresh injection starts from a clean slate. COMPLETED/FAULT keep
+        //     their final values so the UI can display them.
+        if (targets_) {
+            int curState = targets_->currentState.load(std::memory_order_acquire);
+            if (curState != lastObservedState) {
+                auto curStateEnum = static_cast<state::InjectorState>(curState);
+                if (curStateEnum == state::InjectorState::Idle ||
+                    curStateEnum == state::InjectorState::Armed) {
+                    volumePerPhase.clear();
+                    lastPhaseIndex = -1;
+                    phaseVolumeDelivered = 0.0;
+                    phaseCompletePosted = false;
+                    decelLatched = false;
+                }
+                lastObservedState = curState;
+            }
+        }
+
         // 4b. Phase-transition detection: reset per-phase state when the
         //     active phase index changes. Flow rate is held constant across
-        //     the transition; the pressure dip seen on the trace comes from
-        //     the pressure model's first-order lag reacting to the new
-        //     fluid's resistance after the valve switches.
+        //     the transition because the end-of-phase decel latch (step 5)
+        //     only fires on the final phase; the pressure dip seen on the
+        //     trace comes from the pressure model's first-order lag
+        //     reacting to the new fluid's resistance after the valve
+        //     switches.
         if (targets_ && injecting) {
             int phaseIdx = targets_->activePhaseIndex.load(std::memory_order_acquire);
             if (phaseIdx != lastPhaseIndex) {
+                // Freeze the outgoing phase's final delivered volume before
+                // resetting. On the first entry (lastPhaseIndex == -1) there
+                // is nothing to freeze.
+                if (lastPhaseIndex >= 0 &&
+                    static_cast<size_t>(lastPhaseIndex) < volumePerPhase.size()) {
+                    volumePerPhase[lastPhaseIndex] = phaseVolumeDelivered;
+                }
                 lastPhaseIndex = phaseIdx;
                 phaseVolumeDelivered = 0.0;
                 phaseCompletePosted = false;
                 decelLatched = false;
+                if (phaseIdx >= 0 &&
+                    static_cast<size_t>(phaseIdx) >= volumePerPhase.size()) {
+                    volumePerPhase.resize(phaseIdx + 1, 0.0);
+                }
             }
         }
 
@@ -175,10 +220,17 @@ void ControlLoop::run() {
         if (injecting) {
             double adjustedTarget = target;
 
-            // End-of-phase decel trigger based on current actual flow.
+            // End-of-injection decel trigger based on current actual flow.
             // The HAL owns the motor model and predicts how much volume
             // would be delivered if we decelerated from the current flow
             // to zero at the given decel rate.
+            //
+            // Only the FINAL phase decelerates. Intermediate phase boundaries
+            // hand flow off continuously — the target is the same on both
+            // sides, so there is no reason to ramp down and back up. Gating
+            // on `phaseIndex == totalPhases - 1` preserves overshoot
+            // protection on the last phase without creating a V-shaped dip
+            // at every inter-phase transition.
             //
             // Once triggered we LATCH for the rest of the phase. Without the
             // latch, after trigger `remaining` drops slower than `decelVolume`
@@ -188,7 +240,10 @@ void ControlLoop::run() {
                 int phaseIndex = targets_->activePhaseIndex.load(std::memory_order_acquire);
                 double phaseTarget = targets_->currentPhaseVolumeTarget.load(
                     std::memory_order_acquire);
-                if (phaseIndex >= 0 && phaseTarget > 0.0) {
+                int totalPhases = targets_->totalPhases.load(std::memory_order_acquire);
+                const bool isFinalPhase =
+                    totalPhases > 0 && phaseIndex == totalPhases - 1;
+                if (phaseIndex >= 0 && phaseTarget > 0.0 && isFinalPhase) {
                     if (!decelLatched) {
                         double remaining = phaseTarget - phaseVolumeDelivered;
                         double decelVolume =
@@ -236,6 +291,11 @@ void ControlLoop::run() {
             if (phaseIndex >= 0 && phaseTarget > 0.0 && !phaseCompletePosted) {
                 phaseVolumeDelivered += actualFlowRate * dtSeconds;
 
+                // Mirror the live running tally into the streamed vector.
+                if (static_cast<size_t>(phaseIndex) < volumePerPhase.size()) {
+                    volumePerPhase[phaseIndex] = phaseVolumeDelivered;
+                }
+
                 if (phaseVolumeDelivered >= phaseTarget) {
                     phaseCompletePosted = true;  // post once per phase
                     comms::InternalCommand cmd;
@@ -281,7 +341,34 @@ void ControlLoop::run() {
             snap.totalVolumeDelivered = vol;
             snap.contrastRemaining = contrastRemaining;
             snap.salineRemaining = salineRemaining;
-            snap.elapsedTime = snap.timestampS;
+            snap.volumePerPhase = volumePerPhase;
+
+            // Compute elapsed time from the current state. This replaces the
+            // previous frontend-side reinterpretation in InjectorBridge.
+            const auto stateEnum = static_cast<state::InjectorState>(
+                targets_->currentState.load(std::memory_order_acquire));
+            double elapsedReport = 0.0;
+            switch (stateEnum) {
+                case state::InjectorState::Injecting:
+                case state::InjectorState::Completed:
+                case state::InjectorState::Fault:
+                    if (injectionStartTimestampS < 0.0) {
+                        injectionStartTimestampS = snap.timestampS;
+                    }
+                    elapsedReport = snap.timestampS - injectionStartTimestampS;
+                    frozenElapsedS = elapsedReport;
+                    break;
+                case state::InjectorState::Paused:
+                    elapsedReport = frozenElapsedS;
+                    break;
+                case state::InjectorState::Idle:
+                case state::InjectorState::Armed:
+                    injectionStartTimestampS = -1.0;
+                    frozenElapsedS = 0.0;
+                    elapsedReport = 0.0;
+                    break;
+            }
+            snap.elapsedTime = elapsedReport;
             telemetryBroadcast_->push(std::move(snap));
         }
 

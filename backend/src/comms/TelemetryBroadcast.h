@@ -20,7 +20,7 @@ struct TelemetrySnapshot {
     std::vector<double> volumePerPhase;              // mL per phase
     double totalVolumeDelivered = 0.0;               // mL
     double totalProgrammedVolume = 0.0;              // mL
-    double elapsedTime = 0.0;                        // seconds since ARM
+    double elapsedTime = 0.0;                        // seconds since INJECTING entry; frozen on PAUSED, 0 on IDLE/ARMED
     double contrastRemaining = 0.0;                  // mL
     double salineRemaining = 0.0;                    // mL
 };

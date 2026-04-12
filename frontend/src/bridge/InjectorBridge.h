@@ -29,6 +29,7 @@ class InjectorBridge : public QObject {
     Q_PROPERTY(int phaseIndex READ phaseIndex NOTIFY telemetryChanged)
     Q_PROPERTY(double totalVolumeDelivered READ totalVolumeDelivered NOTIFY telemetryChanged)
     Q_PROPERTY(double totalProgrammedVolume READ totalProgrammedVolume NOTIFY telemetryChanged)
+    Q_PROPERTY(QVariantList volumePerPhase READ volumePerPhase NOTIFY telemetryChanged)
     Q_PROPERTY(double elapsedTime READ elapsedTime NOTIFY telemetryChanged)
     Q_PROPERTY(double contrastRemaining READ contrastRemaining NOTIFY telemetryChanged)
     Q_PROPERTY(double salineRemaining READ salineRemaining NOTIFY telemetryChanged)
@@ -60,6 +61,7 @@ public:
     int phaseIndex() const;
     double totalVolumeDelivered() const;
     double totalProgrammedVolume() const;
+    QVariantList volumePerPhase() const;
     double elapsedTime() const;
     double contrastRemaining() const;
     double salineRemaining() const;
@@ -114,7 +116,8 @@ private:
         int state, int phaseIndex,
         double targetFlow, double actualFlow, double pressure, double motorRpm,
         double totalVolDelivered, double totalVolProgrammed, double elapsed,
-        double contrastRemain, double salineRemain);
+        double contrastRemain, double salineRemain,
+        const QVariantList& volumePerPhase);
     Q_INVOKABLE void handleEvent(double timestamp, int type, const QString& details);
 
     GrpcClientService* grpcClient_;
@@ -130,8 +133,8 @@ private:
     int phaseIndex_ = 0;
     double totalVolumeDelivered_ = 0.0;
     double totalProgrammedVolume_ = 0.0;
+    QVariantList volumePerPhase_;
     double elapsedTime_ = 0.0;
-    double injectionStartTime_ = -1.0;  // backend timestamp when injection started; -1 = not started
     double contrastRemaining_ = 0.0;
     double salineRemaining_ = 0.0;
     bool telemetryDirty_ = false;

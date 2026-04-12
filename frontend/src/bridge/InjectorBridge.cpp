@@ -76,6 +76,7 @@ double InjectorBridge::motorRpm() const { return motorRpm_; }
 int InjectorBridge::phaseIndex() const { return phaseIndex_; }
 double InjectorBridge::totalVolumeDelivered() const { return totalVolumeDelivered_; }
 double InjectorBridge::totalProgrammedVolume() const { return totalProgrammedVolume_; }
+QVariantList InjectorBridge::volumePerPhase() const { return volumePerPhase_; }
 double InjectorBridge::elapsedTime() const { return elapsedTime_; }
 double InjectorBridge::contrastRemaining() const { return contrastRemaining_; }
 double InjectorBridge::salineRemaining() const { return salineRemaining_; }
@@ -212,6 +213,12 @@ void InjectorBridge::onConnectionStateChanged(ConnectionState state) {
 }
 
 void InjectorBridge::onTelemetryFrame(const ::injector::TelemetryFrame& frame) {
+    QVariantList vpp;
+    vpp.reserve(frame.volume_delivered_per_phase_size());
+    for (int i = 0; i < frame.volume_delivered_per_phase_size(); ++i) {
+        vpp.append(frame.volume_delivered_per_phase(i));
+    }
+
     QMetaObject::invokeMethod(this, "handleTelemetry",
         Qt::QueuedConnection,
         Q_ARG(int, static_cast<int>(frame.state())),
@@ -224,7 +231,8 @@ void InjectorBridge::onTelemetryFrame(const ::injector::TelemetryFrame& frame) {
         Q_ARG(double, frame.total_programmed_volume()),
         Q_ARG(double, frame.elapsed_time()),
         Q_ARG(double, frame.contrast_remaining()),
-        Q_ARG(double, frame.saline_remaining()));
+        Q_ARG(double, frame.saline_remaining()),
+        Q_ARG(QVariantList, vpp));
 }
 
 void InjectorBridge::onSystemEvent(const ::injector::SystemEvent& event) {
@@ -249,7 +257,8 @@ void InjectorBridge::handleTelemetry(
     int state, int phaseIdx,
     double targetFlow, double actualFlow, double pres, double rpm,
     double totalVolDelivered, double totalVolProgrammed, double elapsed,
-    double contrastRemain, double salineRemain)
+    double contrastRemain, double salineRemain,
+    const QVariantList& volumePerPhase)
 {
     auto newState = stateToString(static_cast<::injector::InjectorState>(state));
     if (injectorState_ != newState) {
@@ -267,19 +276,14 @@ void InjectorBridge::handleTelemetry(
     totalProgrammedVolume_ = totalVolProgrammed;
     contrastRemaining_ = contrastRemain;
     salineRemaining_ = salineRemain;
+    volumePerPhase_ = volumePerPhase;
 
-    // Elapsed time: runs during Injecting/Completed/Fault, frozen on Pause, resets on Idle/Armed
+    // Backend is authoritative for elapsed time (seconds since INJECTING
+    // entry, frozen on PAUSED, 0 on IDLE/ARMED).
+    elapsedTime_ = elapsed;
+
     auto protoState = static_cast<::injector::InjectorState>(state);
-    if (protoState == ::injector::INJECTING || protoState == ::injector::COMPLETED || protoState == ::injector::FAULT) {
-        if (injectionStartTime_ < 0.0) {
-            injectionStartTime_ = elapsed;  // record when injection began
-        }
-        elapsedTime_ = elapsed - injectionStartTime_;
-    } else if (protoState == ::injector::PAUSED) {
-        // Keep showing last elapsed (frozen)
-    } else if (protoState == ::injector::IDLE || protoState == ::injector::ARMED) {
-        elapsedTime_ = 0.0;
-        injectionStartTime_ = -1.0;
+    if (protoState == ::injector::IDLE || protoState == ::injector::ARMED) {
         if (!telemetryHistory_.isEmpty()) {
             telemetryHistory_.clear();
             emit telemetryHistoryChanged();

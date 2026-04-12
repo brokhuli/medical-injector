@@ -212,6 +212,8 @@ CommandResult StateMachine::processCommand(const comms::InternalCommand& cmd) {
             if (targets_) {
                 std::lock_guard<std::mutex> pl(targets_->protocolMutex);
                 targets_->loadedProtocol = proto;
+                targets_->totalPhases.store(static_cast<int>(proto.phaseCount()),
+                                            std::memory_order_release);
             }
 
             emitProtocolLoadedEvent(proto);

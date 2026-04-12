@@ -43,6 +43,11 @@ struct ControlTargets {
     // Written by StateMachine on phase start; read by ControlLoop to detect phase completion.
     std::atomic<double> currentPhaseVolumeTarget{0.0};  // mL; 0 = no active phase
 
+    // Written by StateMachine on protocol load; read by ControlLoop to decide
+    // whether the active phase is the final one (end-of-injection decel ramp
+    // should only fire on the last phase, not at every phase boundary).
+    std::atomic<int> totalPhases{0};
+
     // Written by StateMachine on every state transition; read by ControlLoop for telemetry.
     std::atomic<int> currentState{0};  // InjectorState enum value
 
