@@ -13,8 +13,7 @@
         "kd": 5.0,
         "iTermMax": 500.0,
         "maxRpm": 1500.0,
-        "maxAcceleration": 1.5,
-        "phaseTransitionPauseMs": 60.0
+        "maxAcceleration": 1.5
     },
     "safety": {
         "defaultPressureLimitPsi": 325.0,
@@ -25,15 +24,13 @@
         "controlLoopTickRateMs": 2
     },
     "hal": {
-        "tubingResistance": 50.0,
+        "contrastResistance": 45.0,
+        "salineResistance": 35.0,
         "baselinePressure": 10.0,
         "pressureTimeConstantMs": 400.0,
-        "motorModel": {
-            "type": "first_order",
-            "flowPerRpm": 0.01,
-            "maxRpm": 1500.0,
-            "timeConstantMs": 50.0
-        }
+        "motorTimeConstantMs": 50.0,
+        "flowPerRpm": 0.01,
+        "maxRpm": 1500.0
     },
     "syringe": {
         "contrastVolumeMl": 100.0,

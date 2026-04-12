@@ -1,13 +1,12 @@
 #include "hal/SimulatedHal.h"
 
-#include "hal/MotorModelFactory.h"
-
 namespace injector::hal {
 
 SimulatedHal::SimulatedHal(const HalConfig& config)
-    : motor_(createMotorModel(config.motorModel)),
-      pressure_(config.tubingResistance, config.baselinePressure,
-                config.pressureTimeConstantMs),
+    : contrastResistance_(config.contrastResistance),
+      salineResistance_(config.salineResistance),
+      motor_(config.motorTimeConstantMs, config.flowPerRpm, config.maxRpm),
+      pressure_(config.baselinePressure, config.pressureTimeConstantMs),
       syringes_(config.contrastVolumeMl, config.salineVolumeMl) {
     currentPressure_ = pressure_.filteredPressure();
 }
@@ -19,7 +18,7 @@ double SimulatedHal::readPressure() const {
 
 double SimulatedHal::readMotorRpm() const {
     std::lock_guard<std::mutex> lock(stateMutex_);
-    return motor_->actualRpm();
+    return motor_.actualRpm();
 }
 
 bool SimulatedHal::readAirDetector() const {
@@ -36,7 +35,7 @@ double SimulatedHal::readSyringeVolume(Barrel barrel) const {
 
 void SimulatedHal::setMotorRpm(double rpm) {
     std::lock_guard<std::mutex> lock(stateMutex_);
-    motor_->setCommandedRpm(rpm);
+    motor_.setCommandedRpm(rpm);
 }
 
 void SimulatedHal::setValve(FluidChannel channel, ValveState state) {
@@ -46,7 +45,7 @@ void SimulatedHal::setValve(FluidChannel channel, ValveState state) {
 
 void SimulatedHal::emergencyStop() {
     std::lock_guard<std::mutex> lock(stateMutex_);
-    motor_->emergencyStop();
+    motor_.emergencyStop();
     valves_.closeAll();
 }
 
@@ -54,30 +53,36 @@ void SimulatedHal::tick(double dt) {
     std::lock_guard<std::mutex> lock(stateMutex_);
 
     // 1. Motor model: update actual RPM
-    motor_->tick(dt);
+    motor_.tick(dt);
 
     // 2. Flow rate: compute from motor
-    double flowRate = motor_->flowRate();
+    double flowRate = motor_.flowRate();
 
-    // 3. Active valve: determine effective flow and which barrel drains
-    //    Flow only occurs through an open valve
+    // 3. Active valve: determine effective flow and which barrel drains.
+    //    Flow only occurs through an open valve. The active fluid also
+    //    determines which tubing resistance the pressure model sees.
     bool contrastOpen = valves_.isOpen(FluidChannel::Contrast);
     bool salineOpen = valves_.isOpen(FluidChannel::Saline);
 
+    double activeResistance = contrastResistance_;
     if (contrastOpen) {
         syringes_.drain(FluidChannel::Contrast, flowRate, dt);
+        activeResistance = contrastResistance_;
     } else if (salineOpen) {
         syringes_.drain(FluidChannel::Saline, flowRate, dt);
+        activeResistance = salineResistance_;
     }
 
-    // Effective flow is zero if no valve is open
+    // Effective flow is zero if no valve is open. Flow drops immediately on
+    // valve close; the pressure model's first-order lag produces the
+    // characteristic slow pressure decay.
     double effectiveFlow = (contrastOpen || salineOpen) ? flowRate : 0.0;
     currentFlowRate_ = effectiveFlow;
 
-    // 5. Pressure model: first-order lag toward compute(effectiveFlow)
-    currentPressure_ = pressure_.step(effectiveFlow, dt);
+    // 4. Pressure model: first-order lag toward compute(effectiveFlow, R)
+    currentPressure_ = pressure_.step(effectiveFlow, activeResistance, dt);
 
-    // 6. Air detector: state unchanged unless fault injected (handled externally)
+    // 5. Air detector: state unchanged unless fault injected (handled externally)
 }
 
 void SimulatedHal::injectFault(const SimulatedFault& fault) {
@@ -95,7 +100,7 @@ void SimulatedHal::injectFault(const SimulatedFault& fault) {
         case SimulatedFault::Type::MotorStall:
             {
                 std::lock_guard<std::mutex> lock(stateMutex_);
-                motor_->setMaxRpmOverride(fault.maxRpm);
+                motor_.setMaxRpmOverride(fault.maxRpm);
             }
             break;
         case SimulatedFault::Type::PartialOcclusion:
@@ -113,7 +118,7 @@ void SimulatedHal::injectFault(const SimulatedFault& fault) {
 void SimulatedHal::clearFaults() {
     {
         std::lock_guard<std::mutex> lock(stateMutex_);
-        motor_->clearFaults();
+        motor_.clearFaults();
         pressure_.clearFaults();
         syringes_.resetToFull();
     }
@@ -122,7 +127,7 @@ void SimulatedHal::clearFaults() {
 
 double SimulatedHal::predictDecelVolume(double commandDecelRate) const {
     std::lock_guard<std::mutex> lock(stateMutex_);
-    return motor_->predictDecelVolume(commandDecelRate);
+    return motor_.predictDecelVolume(commandDecelRate);
 }
 
 double SimulatedHal::currentFlowRate() const {

@@ -9,18 +9,20 @@ namespace injector::testing {
 
 // ── HAL configs ──────────────────────────────────────────────────────────────
 
-/// Default HAL — matches config defaults.
+/// Default HAL — pinned to values that keep the test suite's hard-coded
+/// pressure numbers (4 mL/s → 210 psi) stable. Use this fixture — not the
+/// production config defaults — when tests assert specific pressures.
 inline hal::HalConfig defaultHalConfig() {
     hal::HalConfig cfg;
-    cfg.tubingResistance = 50.0;
+    cfg.contrastResistance = 50.0;
+    cfg.salineResistance = 50.0;
     cfg.baselinePressure = 10.0;
     cfg.pressureTimeConstantMs = 400.0;
     cfg.contrastVolumeMl = 100.0;
     cfg.salineVolumeMl = 50.0;
-    cfg.motorModel.type = "first_order";
-    cfg.motorModel.flowPerRpm = 0.01;
-    cfg.motorModel.maxRpm = 1500.0;
-    cfg.motorModel.timeConstantMs = 50.0;
+    cfg.flowPerRpm = 0.01;
+    cfg.maxRpm = 1500.0;
+    cfg.motorTimeConstantMs = 50.0;
     return cfg;
 }
 
@@ -29,7 +31,7 @@ inline hal::HalConfig defaultHalConfig() {
 /// skip long ramp-up windows.
 inline hal::HalConfig fastHalConfig() {
     hal::HalConfig cfg = defaultHalConfig();
-    cfg.motorModel.timeConstantMs = 10.0;
+    cfg.motorTimeConstantMs = 10.0;
     cfg.pressureTimeConstantMs = 10.0;
     return cfg;
 }
@@ -38,7 +40,8 @@ inline hal::HalConfig fastHalConfig() {
 /// Uses fastHalConfig (10ms time constant) so the motor converges quickly.
 inline hal::HalConfig nearLimitHalConfig() {
     hal::HalConfig cfg = fastHalConfig();
-    cfg.tubingResistance = 80.0;
+    cfg.contrastResistance = 80.0;
+    cfg.salineResistance = 80.0;
     return cfg;
 }
 
@@ -48,7 +51,7 @@ inline control::ControlLoopConfig defaultLoopConfig(const hal::HalConfig& hal = 
     control::ControlLoopConfig cfg;
     cfg.tickRateMs = 2;
     cfg.pinCore = false;
-    cfg.flowPerRpm = hal.motorModel.flowPerRpm;
+    cfg.flowPerRpm = hal.flowPerRpm;
     cfg.pid.kp = 100.0;
     cfg.pid.ki = 50.0;
     cfg.pid.kd = 5.0;

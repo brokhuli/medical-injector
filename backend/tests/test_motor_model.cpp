@@ -1,4 +1,4 @@
-#include "hal/FirstOrderMotorModel.h"
+#include "hal/MotorModel.h"
 
 #include <gtest/gtest.h>
 
@@ -9,7 +9,7 @@ using namespace injector::hal;
 class MotorModelTest : public ::testing::Test {
 protected:
     // Default params: 50ms time constant, 0.01 mL/s per RPM, 1500 max RPM
-    FirstOrderMotorModel motor{50.0, 0.01, 1500.0};
+    MotorModel motor{50.0, 0.01, 1500.0};
     static constexpr double kDt = 0.002;  // 2ms tick
 };
 

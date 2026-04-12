@@ -27,14 +27,12 @@ namespace {
 TEST(ConfigIntegration, HalReceivesConfigValues) {
     auto cfg = config::Config::loadFromString(R"({
         "hal": {
-            "tubingResistance": 80.0,
+            "contrastResistance": 80.0,
+            "salineResistance": 40.0,
             "baselinePressure": 15.0,
-            "motorModel": {
-                "type": "first_order",
-                "flowPerRpm": 0.02,
-                "timeConstantMs": 30.0,
-                "maxRpm": 2000.0
-            }
+            "flowPerRpm": 0.02,
+            "motorTimeConstantMs": 30.0,
+            "maxRpm": 2000.0
         },
         "syringe": {
             "contrastVolumeMl": 150.0,
@@ -43,11 +41,14 @@ TEST(ConfigIntegration, HalReceivesConfigValues) {
     })");
 
     hal::HalConfig halCfg;
-    halCfg.tubingResistance   = cfg.hal.tubingResistance;
-    halCfg.baselinePressure   = cfg.hal.baselinePressure;
-    halCfg.motorModel         = cfg.hal.motorModel;
-    halCfg.contrastVolumeMl   = cfg.syringe.contrastVolumeMl;
-    halCfg.salineVolumeMl     = cfg.syringe.salineVolumeMl;
+    halCfg.contrastResistance  = cfg.hal.contrastResistance;
+    halCfg.salineResistance    = cfg.hal.salineResistance;
+    halCfg.baselinePressure    = cfg.hal.baselinePressure;
+    halCfg.motorTimeConstantMs = cfg.hal.motorTimeConstantMs;
+    halCfg.flowPerRpm          = cfg.hal.flowPerRpm;
+    halCfg.maxRpm              = cfg.hal.maxRpm;
+    halCfg.contrastVolumeMl    = cfg.syringe.contrastVolumeMl;
+    halCfg.salineVolumeMl      = cfg.syringe.salineVolumeMl;
 
     hal::SimulatedHal hal(halCfg);
 
@@ -76,21 +77,23 @@ TEST(ConfigIntegration, ControlLoopUsesConfiguredPidGains) {
             "maxAcceleration": 20.0
         },
         "control": { "tickRateMs": 2, "pinCore": false },
-        "hal": { "motorModel": { "flowPerRpm": 0.01 } }
+        "hal": { "flowPerRpm": 0.01 }
     })");
 
     hal::HalConfig halCfg;
-    halCfg.tubingResistance   = cfg.hal.tubingResistance;
-    halCfg.baselinePressure   = cfg.hal.baselinePressure;
-    halCfg.motorModel         = cfg.hal.motorModel;
-    halCfg.motorModel.maxRpm  = cfg.pid.maxRpm;  // match PID max
+    halCfg.contrastResistance  = cfg.hal.contrastResistance;
+    halCfg.salineResistance    = cfg.hal.salineResistance;
+    halCfg.baselinePressure    = cfg.hal.baselinePressure;
+    halCfg.motorTimeConstantMs = cfg.hal.motorTimeConstantMs;
+    halCfg.flowPerRpm          = cfg.hal.flowPerRpm;
+    halCfg.maxRpm              = cfg.pid.maxRpm;  // match PID max
 
     auto hal = std::make_shared<hal::SimulatedHal>(halCfg);
 
     control::ControlLoopConfig loopCfg;
     loopCfg.tickRateMs      = cfg.control.tickRateMs;
     loopCfg.pinCore         = cfg.control.pinCore;
-    loopCfg.flowPerRpm      = cfg.hal.motorModel.flowPerRpm;
+    loopCfg.flowPerRpm      = cfg.hal.flowPerRpm;
     loopCfg.pid.kp          = cfg.pid.kp;
     loopCfg.pid.ki          = cfg.pid.ki;
     loopCfg.pid.kd          = cfg.pid.kd;
@@ -131,14 +134,14 @@ TEST(ConfigIntegration, SafetyMonitorUsesConfiguredPressureLimit) {
     })");
 
     hal::HalConfig halCfg;
-    halCfg.tubingResistance = 50.0;
+    halCfg.contrastResistance = 50.0;
+    halCfg.salineResistance = 35.0;
     halCfg.baselinePressure = 10.0;
     halCfg.contrastVolumeMl = 100.0;
     halCfg.salineVolumeMl = 50.0;
-    halCfg.motorModel.type = "first_order";
-    halCfg.motorModel.flowPerRpm = 0.01;
-    halCfg.motorModel.timeConstantMs = 50.0;
-    halCfg.motorModel.maxRpm = 1500.0;
+    halCfg.flowPerRpm = 0.01;
+    halCfg.motorTimeConstantMs = 50.0;
+    halCfg.maxRpm = 1500.0;
 
     auto hal = std::make_shared<hal::SimulatedHal>(halCfg);
 
@@ -179,14 +182,14 @@ TEST(ConfigIntegration, SafetyMonitorUsesConfiguredMotorDivergence) {
     })");
 
     hal::HalConfig halCfg;
-    halCfg.tubingResistance = 50.0;
+    halCfg.contrastResistance = 50.0;
+    halCfg.salineResistance = 35.0;
     halCfg.baselinePressure = 10.0;
     halCfg.contrastVolumeMl = 100.0;
     halCfg.salineVolumeMl = 50.0;
-    halCfg.motorModel.type = "first_order";
-    halCfg.motorModel.flowPerRpm = 0.01;
-    halCfg.motorModel.timeConstantMs = 50.0;
-    halCfg.motorModel.maxRpm = 1500.0;
+    halCfg.flowPerRpm = 0.01;
+    halCfg.motorTimeConstantMs = 50.0;
+    halCfg.maxRpm = 1500.0;
 
     auto hal = std::make_shared<hal::SimulatedHal>(halCfg);
 
@@ -222,11 +225,14 @@ TEST(ConfigIntegration, FullSystemUsesConfiguredSyringeVolumes) {
     })");
 
     hal::HalConfig halCfg;
-    halCfg.tubingResistance   = cfg.hal.tubingResistance;
-    halCfg.baselinePressure   = cfg.hal.baselinePressure;
-    halCfg.motorModel         = cfg.hal.motorModel;
-    halCfg.contrastVolumeMl   = cfg.syringe.contrastVolumeMl;
-    halCfg.salineVolumeMl     = cfg.syringe.salineVolumeMl;
+    halCfg.contrastResistance  = cfg.hal.contrastResistance;
+    halCfg.salineResistance    = cfg.hal.salineResistance;
+    halCfg.baselinePressure    = cfg.hal.baselinePressure;
+    halCfg.motorTimeConstantMs = cfg.hal.motorTimeConstantMs;
+    halCfg.flowPerRpm          = cfg.hal.flowPerRpm;
+    halCfg.maxRpm              = cfg.hal.maxRpm;
+    halCfg.contrastVolumeMl    = cfg.syringe.contrastVolumeMl;
+    halCfg.salineVolumeMl      = cfg.syringe.salineVolumeMl;
 
     auto hal = std::make_shared<hal::SimulatedHal>(halCfg);
 
@@ -247,11 +253,14 @@ TEST(ConfigIntegration, DefaultConfigProducesValidSystem) {
     auto cfg = config::Config::defaults();
 
     hal::HalConfig halCfg;
-    halCfg.tubingResistance   = cfg.hal.tubingResistance;
-    halCfg.baselinePressure   = cfg.hal.baselinePressure;
-    halCfg.motorModel         = cfg.hal.motorModel;
-    halCfg.contrastVolumeMl   = cfg.syringe.contrastVolumeMl;
-    halCfg.salineVolumeMl     = cfg.syringe.salineVolumeMl;
+    halCfg.contrastResistance  = cfg.hal.contrastResistance;
+    halCfg.salineResistance    = cfg.hal.salineResistance;
+    halCfg.baselinePressure    = cfg.hal.baselinePressure;
+    halCfg.motorTimeConstantMs = cfg.hal.motorTimeConstantMs;
+    halCfg.flowPerRpm          = cfg.hal.flowPerRpm;
+    halCfg.maxRpm              = cfg.hal.maxRpm;
+    halCfg.contrastVolumeMl    = cfg.syringe.contrastVolumeMl;
+    halCfg.salineVolumeMl      = cfg.syringe.salineVolumeMl;
 
     auto hal = std::make_shared<hal::SimulatedHal>(halCfg);
 

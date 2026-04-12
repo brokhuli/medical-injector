@@ -2,28 +2,38 @@
 
 #include "hal/AirDetectorModel.h"
 #include "hal/IHalInterface.h"
-#include "hal/IMotorModel.h"
-#include "hal/MotorModelConfig.h"
+#include "hal/MotorModel.h"
 #include "hal/PressureModel.h"
 #include "hal/SyringeModel.h"
 #include "hal/ValveModel.h"
 
 #include <atomic>
-#include <memory>
 #include <mutex>
 
 namespace injector::hal {
 
 struct HalConfig {
-    double tubingResistance = 50.0;
+    // Pressure model ------------------------------------------------------
+    /// Tubing resistance while contrast is flowing (psi per mL/s).
+    /// Contrast media is more viscous than saline → higher pressure for the
+    /// same flow rate.
+    double contrastResistance = 45.0;
+    /// Tubing resistance while saline is flowing (psi per mL/s).
+    double salineResistance = 35.0;
     double baselinePressure = 10.0;
     /// First-order lag applied to the pressure model (tubing/syringe/patient
     /// compliance). Pressure rises/falls toward the steady-state target with
     /// this time constant.
     double pressureTimeConstantMs = 400.0;
+
+    // Motor model (first-order lag) --------------------------------------
+    double motorTimeConstantMs = 50.0;
+    double flowPerRpm = 0.01;     // mL/s per RPM
+    double maxRpm = 1500.0;
+
+    // Syringes ------------------------------------------------------------
     double contrastVolumeMl = 100.0;
     double salineVolumeMl = 50.0;
-    MotorModelConfig motorModel;
 };
 
 class SimulatedHal : public IHalInterface {
@@ -54,7 +64,9 @@ public:
 
 private:
     mutable std::mutex stateMutex_;
-    std::unique_ptr<IMotorModel> motor_;
+    double contrastResistance_;
+    double salineResistance_;
+    MotorModel motor_;
     PressureModel pressure_;
     ValveModel valves_;
     SyringeModel syringes_;

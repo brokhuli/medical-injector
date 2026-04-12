@@ -18,6 +18,10 @@ protected:
         // that run for ~1 s reach the instantaneous target. The user-facing
         // default (400 ms) is exercised separately in test_pressure_model.
         config.pressureTimeConstantMs = 10.0;
+        // Pin the tubing resistance so the per-fluid steady-state pressure
+        // numbers below are stable regardless of the HalConfig defaults.
+        config.contrastResistance = 50.0;
+        config.salineResistance = 50.0;
         hal = std::make_unique<SimulatedHal>(config);
     }
 };

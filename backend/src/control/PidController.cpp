@@ -60,12 +60,4 @@ void PidController::reset() {
     firstTick_ = true;
 }
 
-void PidController::resetRampedTarget(double value) {
-    rampedTarget_ = value;
-    iTerm_ = 0.0;
-    filteredDerivative_ = 0.0;
-    prevError_ = 0.0;
-    firstTick_ = true;
-}
-
 }  // namespace injector::control

@@ -2,25 +2,35 @@
 
 namespace injector::hal {
 
+/// Tubing + compliance pressure model.
+///
+/// Steady-state pressure is a linear function of flow rate and the tubing
+/// resistance of whichever fluid is currently flowing:
+///
+///     P_ss = flowRate · resistance · multiplier  +  baseline
+///
+/// A first-order lag (time constant = tubing/syringe/patient compliance)
+/// filters the steady-state value so pressure rises and decays smoothly
+/// rather than jumping. The active resistance is passed in at each step
+/// because it changes when the active valve switches between contrast and
+/// saline.
 class PressureModel {
 public:
-    explicit PressureModel(double tubingResistance = 50.0,
-                           double baselinePressure = 10.0,
+    explicit PressureModel(double baselinePressure = 10.0,
                            double timeConstantMs = 400.0);
 
-    /// Instantaneous steady-state pressure for a given flow rate.
-    /// Pure function of inputs — used by tests and as the target of `step()`.
-    double compute(double flowRate) const;
+    /// Instantaneous steady-state pressure for a given flow rate and
+    /// tubing resistance. Pure function of inputs.
+    double compute(double flowRate, double resistance) const;
 
     /// Advance the internal first-order lag one tick and return the filtered
-    /// pressure. Models tubing / syringe / patient compliance so pressure
-    /// lags behind flow changes. `dt` is in seconds.
-    double step(double flowRate, double dt);
+    /// pressure. `dt` is in seconds.
+    double step(double flowRate, double resistance, double dt);
 
     /// Snapshot of the currently filtered (state-carrying) pressure.
     double filteredPressure() const { return filteredPressure_; }
 
-    /// Reset the filtered pressure to the baseline (compute(0)).
+    /// Reset the filtered pressure to the baseline.
     void resetFiltered();
 
     // Fault support
@@ -28,12 +38,10 @@ public:
     void setResistanceMultiplier(double multiplier);
     void clearFaults();
 
-    double tubingResistance() const { return tubingResistance_; }
     double baselinePressure() const { return baselinePressure_; }
     double timeConstantMs() const { return timeConstantMs_; }
 
 private:
-    double tubingResistance_;
     double baselinePressure_;
     double timeConstantMs_;
 
@@ -41,9 +49,6 @@ private:
     double pressureOverride_ = 0.0;
     double resistanceMultiplier_ = 1.0;
 
-    // Must be declared AFTER the fault members so that the constructor's
-    // `filteredPressure_(compute(0.0))` sees the default-initialized fault
-    // state (override=false, multiplier=1.0).
     double filteredPressure_;  // state: first-order filtered pressure
 };
 

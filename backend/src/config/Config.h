@@ -1,7 +1,5 @@
 #pragma once
 
-#include "hal/MotorModelConfig.h"
-
 #include <string>
 
 namespace injector::config {
@@ -23,9 +21,6 @@ struct PidConfig {
     double iTermMax = 500.0;
     double maxRpm = 1500.0;
     double maxAcceleration = 10.0;
-    /// Brief zero-target pause applied at phase transitions so the pressure
-    /// lag model produces a visible dip between phases. Set to 0 to disable.
-    double phaseTransitionPauseMs = 0.0;
 };
 
 struct SafetyConfig {
@@ -38,13 +33,21 @@ struct SafetyConfig {
 };
 
 struct HalConfig {
-    double tubingResistance = 50.0;
+    // Tubing resistance per fluid (psi per mL/s). Contrast media is more
+    // viscous than saline, producing a higher steady-state pressure at the
+    // same flow rate.
+    double contrastResistance = 45.0;
+    double salineResistance = 35.0;
     double baselinePressure = 10.0;
     /// First-order lag applied to the pressure model (tubing/syringe/patient
     /// compliance). Pressure rises/falls toward the instantaneous target with
     /// this time constant.
     double pressureTimeConstantMs = 400.0;
-    hal::MotorModelConfig motorModel;
+
+    // Motor model (first-order lag)
+    double motorTimeConstantMs = 50.0;
+    double flowPerRpm = 0.01;
+    double maxRpm = 1500.0;
 };
 
 struct SyringeConfig {
