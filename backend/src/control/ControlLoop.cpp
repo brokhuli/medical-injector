@@ -7,6 +7,9 @@
 #include <cmath>
 
 #ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #else
 #include <pthread.h>
@@ -217,6 +220,7 @@ void ControlLoop::run() {
         //    below the volume that would be delivered if we decelerated
         //    from the current actual flow to 0 right now.
         double commandedRpm = 0.0;
+        double decelRateOverride = -1.0;
         if (injecting) {
             double adjustedTarget = target;
 
@@ -244,21 +248,35 @@ void ControlLoop::run() {
                 const bool isFinalPhase =
                     totalPhases > 0 && phaseIndex == totalPhases - 1;
                 if (phaseIndex >= 0 && phaseTarget > 0.0 && isFinalPhase) {
+                    // Pressure-aware decel: scale the decel rate with pressure
+                    // headroom so the ramp engages sooner *and* steeper as
+                    // pressure climbs toward the phase limit. Below the
+                    // threshold, scale=1 and behavior matches the old fixed
+                    // rate exactly.
+                    double pLimit = targets_->pressureLimit.load(
+                        std::memory_order_acquire);
+                    double effectiveDecel = pressureAwareDecelRate(
+                        config_.pid.maxAcceleration, pressure, pLimit,
+                        config_.pid.decelPressureThreshold,
+                        config_.pid.decelPressureGain);
+
                     if (!decelLatched) {
                         double remaining = phaseTarget - phaseVolumeDelivered;
                         double decelVolume =
-                            hal_->predictDecelVolume(config_.pid.maxAcceleration);
+                            hal_->predictDecelVolume(effectiveDecel);
                         if (remaining <= decelVolume) {
                             decelLatched = true;
                         }
                     }
                     if (decelLatched) {
                         adjustedTarget = 0.0;
+                        decelRateOverride = effectiveDecel;
                     }
                 }
             }
 
-            commandedRpm = pid_.compute(adjustedTarget, actualFlowRate, dtSeconds);
+            commandedRpm = pid_.compute(adjustedTarget, actualFlowRate, dtSeconds,
+                                        decelRateOverride);
         } else {
             pid_.reset();
         }

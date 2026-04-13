@@ -18,6 +18,8 @@ TEST(ConfigTest, DefaultValues) {
     EXPECT_DOUBLE_EQ(cfg.pid.iTermMax, 500.0);
     EXPECT_DOUBLE_EQ(cfg.pid.maxRpm, 1500.0);
     EXPECT_DOUBLE_EQ(cfg.pid.maxAcceleration, 10.0);
+    EXPECT_DOUBLE_EQ(cfg.pid.decelPressureThreshold, 0.80);
+    EXPECT_DOUBLE_EQ(cfg.pid.decelPressureGain, 2.0);
     EXPECT_DOUBLE_EQ(cfg.safety.defaultPressureLimitPsi, 325.0);
     EXPECT_DOUBLE_EQ(cfg.safety.motorDivergenceThreshold, 200.0);
     EXPECT_EQ(cfg.safety.motorDivergenceTicks, 25);
@@ -79,6 +81,14 @@ TEST(ConfigTest, ParseFullJson) {
     EXPECT_DOUBLE_EQ(cfg.hal.contrastResistance, 75.0);
     EXPECT_DOUBLE_EQ(cfg.hal.salineResistance, 40.0);
     EXPECT_EQ(cfg.logging.ringBufferSize, 500000);
+}
+
+TEST(ConfigTest, PressureAwareDecelFields) {
+    Config cfg = Config::loadFromString(R"({
+        "pid": { "decelPressureThreshold": 0.70, "decelPressureGain": 3.5 }
+    })");
+    EXPECT_DOUBLE_EQ(cfg.pid.decelPressureThreshold, 0.70);
+    EXPECT_DOUBLE_EQ(cfg.pid.decelPressureGain, 3.5);
 }
 
 TEST(ConfigTest, ClampOutOfRangeValues) {

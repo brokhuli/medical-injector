@@ -5,16 +5,29 @@
 
 namespace injector::control {
 
+double pressureAwareDecelRate(double baseRate, double pressure,
+                              double pressureLimit, double threshold,
+                              double gain) {
+    if (pressureLimit <= 0.0) return baseRate;
+    double denom = 1.0 - threshold;
+    if (denom <= 1e-9) return baseRate;
+    double ratio = std::clamp(pressure / pressureLimit, 0.0, 1.0);
+    double headroom = std::max(0.0, ratio - threshold) / denom;
+    return baseRate * (1.0 + gain * headroom);
+}
+
 PidController::PidController(const PidConfig& config) : config_(config) {}
 
 double PidController::compute(double targetFlowRate, double actualFlowRate,
-                              double dt) {
+                              double dt, double maxAccelOverride) {
     if (dt <= 0.0) {
         return lastOutput_;
     }
 
     // Acceleration ramp: rate-limit the target change
-    double maxChange = config_.maxAcceleration * dt;
+    double maxAccel = (maxAccelOverride > 0.0) ? maxAccelOverride
+                                               : config_.maxAcceleration;
+    double maxChange = maxAccel * dt;
     double delta = targetFlowRate - rampedTarget_;
     delta = std::clamp(delta, -maxChange, maxChange);
     rampedTarget_ += delta;

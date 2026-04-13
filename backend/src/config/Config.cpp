@@ -57,6 +57,10 @@ void validate(Config& cfg) {
     cfg.pid.iTermMax = requirePositive(cfg.pid.iTermMax, "pid.iTermMax");
     cfg.pid.maxRpm = requirePositive(cfg.pid.maxRpm, "pid.maxRpm");
     cfg.pid.maxAcceleration = requirePositive(cfg.pid.maxAcceleration, "pid.maxAcceleration");
+    cfg.pid.decelPressureThreshold = clamp(cfg.pid.decelPressureThreshold, 0.0, 1.0,
+                                           "pid.decelPressureThreshold");
+    cfg.pid.decelPressureGain = requireNonNegative(cfg.pid.decelPressureGain,
+                                                    "pid.decelPressureGain");
 
     // Safety
     cfg.safety.defaultPressureLimitPsi = clamp(cfg.safety.defaultPressureLimitPsi,
@@ -124,6 +128,10 @@ Config parseJson(const nlohmann::json& j) {
         if (p.contains("maxRpm")) cfg.pid.maxRpm = p["maxRpm"].get<double>();
         if (p.contains("maxAcceleration"))
             cfg.pid.maxAcceleration = p["maxAcceleration"].get<double>();
+        if (p.contains("decelPressureThreshold"))
+            cfg.pid.decelPressureThreshold = p["decelPressureThreshold"].get<double>();
+        if (p.contains("decelPressureGain"))
+            cfg.pid.decelPressureGain = p["decelPressureGain"].get<double>();
     }
 
     if (j.contains("safety")) {

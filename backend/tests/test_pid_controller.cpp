@@ -161,6 +161,83 @@ TEST(PidControllerTest, Reset) {
     EXPECT_DOUBLE_EQ(pid.lastOutput(), 0.0);
 }
 
+// Pressure-aware decel scaling helper.
+TEST(PressureAwareDecel, BelowThresholdReturnsBaseRate) {
+    // pressure = 50% of limit, threshold = 80% → no scaling
+    double r = pressureAwareDecelRate(10.0, 125.0, 250.0, 0.80, 2.0);
+    EXPECT_DOUBLE_EQ(r, 10.0);
+}
+
+TEST(PressureAwareDecel, AtLimitScalesByOnePlusGain) {
+    // pressure = limit → scale = 1 + gain
+    double r = pressureAwareDecelRate(10.0, 250.0, 250.0, 0.80, 2.0);
+    EXPECT_DOUBLE_EQ(r, 30.0);
+}
+
+TEST(PressureAwareDecel, GainZeroCollapsesToFixedRate) {
+    // Any pressure, gain=0 → returns baseRate
+    EXPECT_DOUBLE_EQ(pressureAwareDecelRate(10.0, 300.0, 250.0, 0.80, 0.0), 10.0);
+    EXPECT_DOUBLE_EQ(pressureAwareDecelRate(10.0, 0.0, 250.0, 0.80, 0.0), 10.0);
+}
+
+TEST(PressureAwareDecel, HalfwayBetweenThresholdAndLimit) {
+    // threshold=0.8, ratio=0.9 → headroom = (0.9-0.8)/0.2 = 0.5
+    // scale = 1 + 2*0.5 = 2.0 → 10 * 2 = 20
+    double r = pressureAwareDecelRate(10.0, 225.0, 250.0, 0.80, 2.0);
+    EXPECT_DOUBLE_EQ(r, 20.0);
+}
+
+TEST(PressureAwareDecel, InvalidLimitReturnsBaseRate) {
+    EXPECT_DOUBLE_EQ(pressureAwareDecelRate(10.0, 100.0, 0.0, 0.80, 2.0), 10.0);
+    EXPECT_DOUBLE_EQ(pressureAwareDecelRate(10.0, 100.0, -1.0, 0.80, 2.0), 10.0);
+}
+
+TEST(PressureAwareDecel, ThresholdOneReturnsBaseRate) {
+    // Degenerate: threshold=1 means "never scale"
+    EXPECT_DOUBLE_EQ(pressureAwareDecelRate(10.0, 250.0, 250.0, 1.0, 2.0), 10.0);
+}
+
+// maxAccelOverride replaces config.maxAcceleration for a single tick's ramp
+// limiter (used by the pressure-aware decel path in ControlLoop).
+TEST(PidControllerTest, MaxAccelOverrideScalesRamp) {
+    PidConfig cfg;
+    cfg.maxAcceleration = 10.0;
+    PidController pid(cfg);
+
+    // Warm up ramped target to 4.0 mL/s using the config rate so we're
+    // comparing the downward ramp from the same starting point.
+    for (int i = 0; i < 500; ++i) {
+        (void)pid.compute(4.0, 4.0, DT);
+    }
+    double start = pid.rampedTarget();
+    EXPECT_NEAR(start, 4.0, 1e-6);
+
+    // One tick of downward ramp with a 3x override should move the ramped
+    // target 3x as far as the config rate would.
+    (void)pid.compute(0.0, 4.0, DT, /*override=*/30.0);
+    double deltaOverride = start - pid.rampedTarget();
+    EXPECT_NEAR(deltaOverride, 30.0 * DT, 1e-9);
+
+    // Same setup, no override → moves at config rate.
+    PidController pid2(cfg);
+    for (int i = 0; i < 500; ++i) {
+        (void)pid2.compute(4.0, 4.0, DT);
+    }
+    (void)pid2.compute(0.0, 4.0, DT);
+    double deltaConfig = 4.0 - pid2.rampedTarget();
+    EXPECT_NEAR(deltaConfig, 10.0 * DT, 1e-9);
+}
+
+TEST(PidControllerTest, MaxAccelOverrideNegativeUsesConfig) {
+    PidConfig cfg;
+    cfg.maxAcceleration = 10.0;
+    PidController pid(cfg);
+
+    // A negative override must be ignored; ramp uses config rate.
+    (void)pid.compute(4.0, 0.0, DT, -1.0);
+    EXPECT_NEAR(pid.rampedTarget(), 10.0 * DT, 1e-9);
+}
+
 TEST(PidControllerTest, ZeroDtReturnsLastOutput) {
     PidController pid;
     (void)pid.compute(4.0, 0.0, DT);

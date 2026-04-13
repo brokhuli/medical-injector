@@ -21,6 +21,10 @@ struct PidConfig {
     double iTermMax = 500.0;
     double maxRpm = 1500.0;
     double maxAcceleration = 10.0;
+    // Pressure-aware decel: ratio of pressureLimit at which the end-of-phase
+    // decel ramp begins scaling above maxAcceleration, and how aggressively.
+    double decelPressureThreshold = 0.80;
+    double decelPressureGain = 2.0;
 };
 
 struct SafetyConfig {

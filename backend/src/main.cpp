@@ -77,6 +77,8 @@ int main(int argc, char* argv[]) {
     loopCfg.pid.iTermMax    = cfg.pid.iTermMax;
     loopCfg.pid.maxRpm      = cfg.pid.maxRpm;
     loopCfg.pid.maxAcceleration = cfg.pid.maxAcceleration;
+    loopCfg.pid.decelPressureThreshold = cfg.pid.decelPressureThreshold;
+    loopCfg.pid.decelPressureGain = cfg.pid.decelPressureGain;
 
     injector::control::ControlLoop controlLoop(
         hal, loopCfg, &logger.tickBuffer(), &targets, &commandQueue, &telemetry);
