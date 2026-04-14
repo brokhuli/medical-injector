@@ -17,5 +17,11 @@
         <file>qml/components/TimelineChart.qml</file>
         <file>qml/components/Dashboard.qml</file>
         <file>qml/components/EventLog.qml</file>
+        <file>qml/components/AboutDialog.qml</file>
+    </qresource>
+    <qresource prefix="/readme">
+        <file alias="about.md">../readme/about.md</file>
+        <file alias="architecture-summary.md">../readme/architecture-summary.md</file>
+        <file alias="architecture-decision-record.md">../readme/architecture-decision-record.md</file>
     </qresource>
 </RCC>

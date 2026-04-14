@@ -63,9 +63,79 @@ ApplicationWindow {
                 horizontalAlignment: Text.AlignHCenter
             }
 
-            // Spacer to balance the layout
-            Item { Layout.preferredWidth: 150 }
+            // About menu
+            ToolButton {
+                id: aboutBtn
+                text: "About \u25BE"
+                Layout.preferredWidth: 150
+                Layout.preferredHeight: 36
+
+                background: Rectangle {
+                    color: aboutBtn.hovered ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+                    radius: 6
+                    border.color: Qt.rgba(1, 1, 1, 0.12)
+                    border.width: 1
+                }
+                contentItem: Text {
+                    text: aboutBtn.text
+                    color: App.Theme.text
+                    font.pixelSize: App.Theme.fontSizeMedium
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: aboutMenu.open()
+
+                Menu {
+                    id: aboutMenu
+                    y: aboutBtn.height
+
+                    background: Rectangle {
+                        color: App.Theme.surface
+                        radius: 6
+                        border.color: Qt.rgba(1, 1, 1, 0.12)
+                        border.width: 1
+                        implicitWidth: 220
+                    }
+
+                    component ThemedMenuItem: MenuItem {
+                        id: themedItem
+                        implicitHeight: 36
+                        background: Rectangle {
+                            color: themedItem.highlighted
+                                   ? Qt.rgba(1, 1, 1, 0.08)
+                                   : "transparent"
+                            radius: 4
+                        }
+                        contentItem: Text {
+                            text: themedItem.text
+                            color: App.Theme.text
+                            font.pixelSize: App.Theme.fontSizeMedium
+                            verticalAlignment: Text.AlignVCenter
+                            leftPadding: App.Theme.spacingMedium
+                        }
+                    }
+
+                    ThemedMenuItem {
+                        text: "About"
+                        onTriggered: aboutDialog.show("qrc:/readme/about.md", "About")
+                    }
+                    ThemedMenuItem {
+                        text: "Architecture Summary"
+                        onTriggered: aboutDialog.show("qrc:/readme/architecture-summary.md", "Architecture Summary")
+                    }
+                    ThemedMenuItem {
+                        text: "Design Decisions"
+                        onTriggered: aboutDialog.show("qrc:/readme/architecture-decision-record.md", "Design Decisions")
+                    }
+                }
+            }
         }
+    }
+
+    Components.AboutDialog {
+        id: aboutDialog
     }
 
     // Main content area

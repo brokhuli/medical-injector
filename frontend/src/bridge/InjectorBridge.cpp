@@ -1,4 +1,5 @@
 #include "InjectorBridge.h"
+#include <QFile>
 #include <QMetaObject>
 #include <QThreadPool>
 
@@ -203,6 +204,18 @@ void InjectorBridge::exportData(const QString& format) {
     QThreadPool::globalInstance()->start([client, fmt]() {
         client->exportData(fmt);
     });
+}
+
+QString InjectorBridge::loadTextResource(const QString& path) const {
+    QString resolved = path;
+    if (resolved.startsWith(QStringLiteral("qrc:/"))) {
+        resolved = QStringLiteral(":") + resolved.mid(4);
+    }
+    QFile file(resolved);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return QStringLiteral("Failed to load %1").arg(path);
+    }
+    return QString::fromUtf8(file.readAll());
 }
 
 // ── Background thread callbacks → marshal to main thread ────────

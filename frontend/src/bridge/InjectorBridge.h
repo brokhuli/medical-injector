@@ -94,6 +94,8 @@ public:
     Q_INVOKABLE void injectFault(const QString& faultType, const QVariantMap& params);
     Q_INVOKABLE void exportData(const QString& format);
 
+    Q_INVOKABLE QString loadTextResource(const QString& path) const;
+
 signals:
     void connectionStatusChanged();
     void injectorStateChanged();

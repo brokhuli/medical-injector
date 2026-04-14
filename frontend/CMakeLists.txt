@@ -36,6 +36,17 @@ qt_add_resources(injector-frontend "qml"
         qml/components/TimelineChart.qml
         qml/components/Dashboard.qml
         qml/components/EventLog.qml
+        qml/components/AboutDialog.qml
+)
+
+# ── Qt Resources (readme markdown) ─────────────────────────────
+qt_add_resources(injector-frontend "readme"
+    PREFIX "/readme"
+    BASE "${CMAKE_SOURCE_DIR}/readme"
+    FILES
+        ${CMAKE_SOURCE_DIR}/readme/about.md
+        ${CMAKE_SOURCE_DIR}/readme/architecture-summary.md
+        ${CMAKE_SOURCE_DIR}/readme/architecture-decision-record.md
 )
 
 # ── Include paths ───────────────────────────────────────────────
