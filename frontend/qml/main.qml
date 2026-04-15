@@ -176,13 +176,27 @@ ApplicationWindow {
         }
     }
 
-    // Bottom: Event log
+    // Bottom: Event log + loop health bar
     footer: ToolBar {
         background: Rectangle { color: "transparent" }
         height: 150
 
-        Components.EventLog {
+        RowLayout {
             anchors.fill: parent
+            anchors.rightMargin: App.Theme.spacingLarge
+            spacing: App.Theme.spacingLarge
+
+            Components.EventLog {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+            }
+
+            Components.LoopHealthBar {
+                Layout.fillHeight: true
+                meanTickMs:   injectorBridge.meanTickMs
+                maxTickMs:    injectorBridge.maxTickMs
+                overrunCount: injectorBridge.overrunCount
+            }
         }
     }
 }

@@ -11,6 +11,32 @@ Rectangle {
     color: App.Theme.surface
     radius: 8
 
+    function formatDetails(typeStr, rawDetails) {
+        if (!rawDetails) return ""
+        var d
+        try { d = JSON.parse(rawDetails) } catch(e) { return rawDetails }
+        switch(typeStr) {
+            case "state_transition":
+                return (d.from||"?") + " \u2192 " + (d.to||"?") +
+                       (d.trigger ? "  [" + d.trigger + "]" : "")
+            case "fault_detected":
+                return (d.fault_type||"FAULT") + "  " +
+                       (d.value !== undefined ? d.value.toFixed(1) : "?") + " / " +
+                       (d.threshold !== undefined ? d.threshold.toFixed(0) : "?") + " psi"
+            case "phase_transition":
+                return "P" + ((d.from_phase||0)+1) + " \u2192 P" + ((d.to_phase||0)+1) +
+                       "  " + (d.volume_delivered !== undefined ? d.volume_delivered.toFixed(1) : "?") +
+                       "/" + (d.volume_programmed !== undefined ? d.volume_programmed.toFixed(0) : "?") + " mL"
+            case "protocol_loaded":
+                return (d.phase_count||"?") + " phases  " +
+                       (d.total_volume !== undefined ? d.total_volume.toFixed(0) : "?") + " mL total"
+            case "command_rejected":
+                return "Rejected: " + (d.command||"?") + "  \u2014 " + (d.reason||"")
+            default:
+                return rawDetails
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: App.Theme.spacingMedium
@@ -78,19 +104,19 @@ Rectangle {
                         height: 6
                         radius: 3
                         color: {
-                            var type = modelData.type || ""
-                            if (type === "fault" || type === "emergency_stop")
-                                return App.Theme.fault
-                            if (type === "state_change")
-                                return App.Theme.injecting
+                            var ts = modelData.typeStr || ""
+                            if (ts === "fault_detected")   return App.Theme.fault
+                            if (ts === "state_transition") return App.Theme.injecting
+                            if (ts === "phase_transition") return "#22c55e"
+                            if (ts === "command_rejected") return App.Theme.paused
                             return App.Theme.textSecondary
                         }
                     }
 
                     // Details
                     Text {
-                        text: modelData.details || ""
-                        color: App.Theme.text
+                        text: root.formatDetails(modelData.typeStr || "", modelData.details || "")
+                        color: (modelData.typeStr === "fault_detected") ? App.Theme.fault : App.Theme.text
                         font.pixelSize: 11
                         elide: Text.ElideRight
                         Layout.fillWidth: true

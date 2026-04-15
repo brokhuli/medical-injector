@@ -37,6 +37,8 @@ qt_add_resources(injector-frontend "qml"
         qml/components/Dashboard.qml
         qml/components/EventLog.qml
         qml/components/AboutDialog.qml
+        qml/components/ValveIndicator.qml
+        qml/components/LoopHealthBar.qml
 )
 
 # ── Qt Resources (readme markdown) ─────────────────────────────

@@ -87,6 +87,11 @@ void fillTelemetryFrame(::injector::TelemetryFrame* frame,
     frame->set_elapsed_time(snap.elapsedTime);
     frame->set_contrast_remaining(snap.contrastRemaining);
     frame->set_saline_remaining(snap.salineRemaining);
+    frame->set_contrast_valve(snap.contrastValve);
+    frame->set_saline_valve(snap.salineValve);
+    frame->set_mean_tick_ms(snap.meanTickMs);
+    frame->set_max_tick_ms(snap.maxTickMs);
+    frame->set_overrun_count(snap.overrunCount);
 }
 
 }  // namespace

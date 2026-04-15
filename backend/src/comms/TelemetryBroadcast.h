@@ -23,6 +23,11 @@ struct TelemetrySnapshot {
     double elapsedTime = 0.0;                        // seconds since INJECTING entry; frozen on PAUSED, 0 on IDLE/ARMED
     double contrastRemaining = 0.0;                  // mL
     double salineRemaining = 0.0;                    // mL
+    bool contrastValve = false;                      // contrast valve open
+    bool salineValve = false;                        // saline valve open
+    double meanTickMs = 0.0;                         // control loop mean tick duration
+    double maxTickMs = 0.0;                          // control loop max tick duration
+    int64_t overrunCount = 0;                        // ticks exceeding 2x target period
 };
 
 /// SPSC ring buffer wrapper for telemetry snapshots.

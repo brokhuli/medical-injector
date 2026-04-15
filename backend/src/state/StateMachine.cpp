@@ -262,8 +262,8 @@ CommandResult StateMachine::processCommand(const comms::InternalCommand& cmd) {
 void StateMachine::processFaultEvent(const FaultEvent& fault) {
     std::lock_guard<std::mutex> lock(stateMutex_);
 
-    if (state_ == InjectorState::Idle || state_ == InjectorState::Completed) {
-        return;  // safety monitor shouldn't fire here; ignore gracefully
+    if (state_ == InjectorState::Idle) {
+        return;  // nothing running; ignore gracefully
     }
 
     activeFaults_.push_back(fault);

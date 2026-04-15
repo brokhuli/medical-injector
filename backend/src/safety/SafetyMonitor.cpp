@@ -149,7 +149,24 @@ void SafetyMonitor::run() {
         std::chrono::microseconds(cfg_.tickRateMs * 1000);
     auto nextTick = std::chrono::steady_clock::now();
 
+    int lastObservedState = -1;
+
     while (running_.load(std::memory_order_acquire)) {
+        // Auto-reset fault latch when state machine returns to Idle or Armed so
+        // that each new injection run gets a clean slate. Without this, faultReported_
+        // stays true after the first fault and the monitor never fires again.
+        if (targets_) {
+            int st = targets_->currentState.load(std::memory_order_acquire);
+            if (st != lastObservedState) {
+                auto stEnum = static_cast<state::InjectorState>(st);
+                if (stEnum == state::InjectorState::Idle ||
+                    stEnum == state::InjectorState::Armed) {
+                    resetCounters();
+                }
+                lastObservedState = st;
+            }
+        }
+
         uint64_t nowUs = steadyNowUs();
         auto faults = checkOnce(nowUs);
 

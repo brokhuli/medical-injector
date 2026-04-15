@@ -34,7 +34,7 @@
     },
     "syringe": {
         "contrastVolumeMl": 100.0,
-        "salineVolumeMl": 50.0
+        "salineVolumeMl": 150.0
     },
     "logging": {
         "ringBufferSize": 300000,

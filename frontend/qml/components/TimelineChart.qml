@@ -8,8 +8,8 @@ Rectangle {
     property var loadedProtocol: []
     property double windowSeconds: 30.0
 
-    readonly property double maxFlowRate: 6.0
-    readonly property double maxPressure: 300.0
+    readonly property double maxFlowRate: 4.8
+    readonly property double maxPressure: 240.0
 
     color: Qt.rgba(0, 0, 0, 0.2)
     radius: 6
@@ -102,13 +102,16 @@ Rectangle {
             // Draw grid
             drawGrid(ctx, timeStart, timeEnd)
 
-            // Draw flow rate line (left Y-axis, blue)
-            drawSeries(ctx, data, "actualFlowRate", timeStart, timeEnd,
-                       maxFlowRate, App.Theme.injecting.toString())
+            // Draw valve state bands (before series so lines overlay them)
+            drawValveBands(ctx, data, timeStart, timeEnd)
 
             // Draw pressure line (right Y-axis, orange)
             drawSeriesRight(ctx, data, "pressure", timeStart, timeEnd,
                            maxPressure, App.Theme.paused.toString())
+
+            // Draw flow rate line last (left Y-axis, blue) so it renders on top
+            drawSeries(ctx, data, "actualFlowRate", timeStart, timeEnd,
+                       maxFlowRate, App.Theme.injecting.toString())
 
             // Draw phase boundary markers
             drawPhaseMarkers(ctx, data, timeStart, timeEnd)
@@ -297,5 +300,50 @@ Rectangle {
 
             ctx.setLineDash([])
         }
+
+        function drawValveBands(ctx, data, timeStart, timeEnd) {
+            var timeRange = timeEnd - timeStart
+            if (timeRange <= 0 || data.length < 2) return
+
+            // Draw semi-transparent band in the bottom 20% of the plot area
+            // to indicate which fluid valve was open at each moment.
+            var bandTop = topMargin
+            var bandH   = plotH * 0.20
+
+            var i = 0
+            while (i < data.length) {
+                var d = data[i]
+                var t = d.timestamp || 0
+                if (t < timeStart) { i++; continue }
+                if (t > timeEnd)   break
+
+                var isContrast = d.contrastValve || false
+                var isSaline   = d.salineValve   || false
+                if (!isContrast && !isSaline) { i++; continue }
+
+                // Find the run of contiguous frames with the same valve state
+                var runStart = t
+                var activeColor = isContrast ? Qt.rgba(0.07, 0.47, 1.0, 0.18)   // blue tint
+                                             : Qt.rgba(0.02, 0.71, 0.83, 0.18)  // cyan tint
+                i++
+                while (i < data.length) {
+                    var nd = data[i]
+                    var nt = nd.timestamp || 0
+                    if (nt > timeEnd) break
+                    var nc = nd.contrastValve || false
+                    var ns = nd.salineValve   || false
+                    if (nc !== isContrast || ns !== isSaline) break
+                    i++
+                }
+                var runEnd = (i < data.length) ? (data[i].timestamp || timeEnd) : timeEnd
+
+                var x0 = leftMargin + plotW * (runStart - timeStart) / timeRange
+                var x1 = leftMargin + plotW * (Math.min(runEnd, timeEnd) - timeStart) / timeRange
+
+                ctx.fillStyle = activeColor
+                ctx.fillRect(x0, bandTop, x1 - x0, bandH)
+            }
+        }
     }
 }
+

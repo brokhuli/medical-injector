@@ -104,6 +104,11 @@ message TelemetryFrame {
   double elapsed_time                        = 11;
   double contrast_remaining                  = 12;
   double saline_remaining                    = 13;
+  bool   contrast_valve                      = 14;  // contrast valve open
+  bool   saline_valve                        = 15;  // saline valve open
+  double mean_tick_ms                        = 16;  // control loop mean tick duration
+  double max_tick_ms                         = 17;  // control loop max tick duration
+  int64  overrun_count                       = 18;  // ticks exceeding 2x target period
 }
 
 // ── Events ──────────────────────────────────────────────────────

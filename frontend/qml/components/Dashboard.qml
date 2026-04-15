@@ -71,6 +71,26 @@ Rectangle {
             }
         }
 
+        // Valve state indicators
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: App.Theme.spacingLarge
+
+            ValveIndicator {
+                label: "Contrast"
+                open: bridge.contrastValve
+                openColor: App.Theme.injecting
+            }
+
+            ValveIndicator {
+                label: "Saline"
+                open: bridge.salineValve
+                openColor: "#06b6d4"
+            }
+
+            Item { Layout.fillWidth: true }
+        }
+
         // Volume progress
         VolumeProgress {
             Layout.fillWidth: true

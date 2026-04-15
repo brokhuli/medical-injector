@@ -8,51 +8,17 @@ Rectangle {
 
     property var bridge: injectorBridge
     readonly property bool isIdle: bridge.injectorState === "Idle"
-    readonly property bool isPreInjection: bridge.injectorState === "Idle" || bridge.injectorState === "Armed"
     readonly property int maxPhases: 20
 
-    // Track volume delivered at injection start so we use the delta
-    readonly property var _loaded: bridge.loadedProtocol
-    readonly property double _volDelivered: bridge.totalVolumeDelivered
-    property double _volDeliveredAtStart: 0
-
-    onIsPreInjectionChanged: {
-        if (!isPreInjection) {
-            // Capture baseline when injection begins
-            _volDeliveredAtStart = _volDelivered
-        }
-    }
-
-    readonly property double _volThisRun: Math.max(0, _volDelivered - _volDeliveredAtStart)
-
-    readonly property double contrastDisplay: {
-        if (isPreInjection) return totalContrast
-        var contrastDel = 0
-        var remaining = _volThisRun
-        for (var i = 0; i < _loaded.length && remaining > 0; i++) {
-            var phase = _loaded[i]
-            var phaseVol = phase.volume || 0
-            var used = Math.min(phaseVol, remaining)
-            if ((phase.fluidType || "contrast").toLowerCase() === "contrast")
-                contrastDel += used
-            remaining -= used
-        }
-        return Math.max(0, totalContrast - contrastDel)
-    }
-    readonly property double salineDisplay: {
-        if (isPreInjection) return totalSaline
-        var salineDel = 0
-        var remaining = _volThisRun
-        for (var i = 0; i < _loaded.length && remaining > 0; i++) {
-            var phase = _loaded[i]
-            var phaseVol = phase.volume || 0
-            var used = Math.min(phaseVol, remaining)
-            if ((phase.fluidType || "").toLowerCase() === "saline")
-                salineDel += used
-            remaining -= used
-        }
-        return Math.max(0, totalSaline - salineDel)
-    }
+    // Track initial syringe fill levels (peak value seen — fluid only decreases).
+    // Reset to 0 on Idle so a refill is recaptured for the next run.
+    property double _contrastInitial: 0.0
+    property double _salineInitial:   0.0
+    property double _contrastMonitor: bridge.contrastRemaining
+    property double _salineMonitor:   bridge.salineRemaining
+    on_ContrastMonitorChanged: if (_contrastMonitor > _contrastInitial) _contrastInitial = _contrastMonitor
+    on_SalineMonitorChanged:   if (_salineMonitor   > _salineInitial)   _salineInitial   = _salineMonitor
+    onIsIdleChanged: if (isIdle) { _contrastInitial = 0.0; _salineInitial = 0.0 }
 
     // Recompute totals whenever protocol changes
     readonly property var _proto: bridge.protocol
@@ -110,8 +76,8 @@ Rectangle {
                 phaseIndex: index
                 fluidType: modelData.fluidType || "contrast"
                 flowRate: modelData.flowRate || 2.0
-                volume: modelData.volume || 40.0
-                pressureLimit: modelData.pressureLimit || 250.0
+                volume: modelData.volume || 25.0
+                pressureLimit: modelData.pressureLimit || 200.0
                 editable: root.isIdle
 
                 onRemoveRequested: function(idx) {
@@ -159,7 +125,7 @@ Rectangle {
                 verticalAlignment: Text.AlignVCenter
             }
 
-            onClicked: bridge.addPhase("contrast", 2.0, 40.0, 250.0)
+            onClicked: bridge.addPhase("contrast", 2.0, 25.0, 200.0)
         }
 
         // Separator
@@ -169,19 +135,19 @@ Rectangle {
             color: Qt.rgba(1, 1, 1, 0.1)
         }
 
-        // Syringe levels — show protocol totals when idle, telemetry remaining otherwise
+        // Syringe levels — authoritative remaining volumes from backend telemetry
         SyringeIndicator {
             label: "Contrast"
-            remaining: root.contrastDisplay
-            capacity: Math.max(root.totalContrast, 1.0)
+            remaining: bridge.contrastRemaining
+            capacity: Math.max(root._contrastInitial, 1.0)
             barColor: App.Theme.injecting
             Layout.fillWidth: true
         }
 
         SyringeIndicator {
             label: "Saline"
-            remaining: root.salineDisplay
-            capacity: Math.max(root.totalSaline, 1.0)
+            remaining: bridge.salineRemaining
+            capacity: Math.max(root._salineInitial, 1.0)
             barColor: "#06b6d4"
             Layout.fillWidth: true
         }

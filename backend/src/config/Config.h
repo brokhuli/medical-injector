@@ -56,7 +56,7 @@ struct HalConfig {
 
 struct SyringeConfig {
     double contrastVolumeMl = 100.0;
-    double salineVolumeMl = 50.0;
+    double salineVolumeMl = 150.0;
 };
 
 struct LoggingConfig {

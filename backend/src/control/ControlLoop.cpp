@@ -111,7 +111,6 @@ void ControlLoop::run() {
     const double dtSeconds = config_.tickRateMs / 1000.0;
 
     auto nextTick = std::chrono::steady_clock::now();
-    double tickMsSum = 0.0;
 
     // Per-phase volume tracking (local to run thread — no atomics needed)
     int lastPhaseIndex = -1;
@@ -182,6 +181,12 @@ void ControlLoop::run() {
                     phaseVolumeDelivered = 0.0;
                     phaseCompletePosted = false;
                     decelLatched = false;
+                }
+                // Reset per-run timing stats when a new injection begins so the
+                // LoopHealthBar shows stats for the current run, not all time.
+                if (curStateEnum == state::InjectorState::Injecting) {
+                    maxTickMs_.store(0.0, std::memory_order_relaxed);
+                    overrunCount_.store(0, std::memory_order_relaxed);
                 }
                 lastObservedState = curState;
             }
@@ -361,6 +366,18 @@ void ControlLoop::run() {
             snap.salineRemaining = salineRemaining;
             snap.volumePerPhase = volumePerPhase;
 
+            // Valve state: re-read active channel from targets (same source as step 4)
+            {
+                int ch = targets_->activeFluidChannel.load(std::memory_order_acquire);
+                snap.contrastValve = injecting && (ch == 0);
+                snap.salineValve   = injecting && (ch == 1);
+            }
+
+            // Timing stats (one tick stale — computed in step 10 after this push; acceptable for diagnostics)
+            snap.meanTickMs   = meanTickMs_.load(std::memory_order_relaxed);
+            snap.maxTickMs    = maxTickMs_.load(std::memory_order_relaxed);
+            snap.overrunCount = static_cast<int64_t>(overrunCount_.load(std::memory_order_relaxed));
+
             // Compute elapsed time from the current state. This replaces the
             // previous frontend-side reinterpretation in InjectorBridge.
             const auto stateEnum = static_cast<state::InjectorState>(
@@ -396,10 +413,11 @@ void ControlLoop::run() {
             std::chrono::duration<double, std::milli>(tickEnd - tickStart)
                 .count();
 
-        uint64_t ticks =
-            totalTicks_.fetch_add(1, std::memory_order_relaxed) + 1;
-        tickMsSum += tickMs;
-        meanTickMs_.store(tickMsSum / ticks, std::memory_order_relaxed);
+        totalTicks_.fetch_add(1, std::memory_order_relaxed);
+        // EMA with α=0.01: ~100-tick (~0.2s) time constant, keeps the bar live
+        double prevMean = meanTickMs_.load(std::memory_order_relaxed);
+        meanTickMs_.store(prevMean + 0.01 * (tickMs - prevMean),
+                          std::memory_order_relaxed);
 
         double currentMax = maxTickMs_.load(std::memory_order_relaxed);
         if (tickMs > currentMax) {

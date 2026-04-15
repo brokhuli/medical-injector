@@ -81,6 +81,11 @@ QVariantList InjectorBridge::volumePerPhase() const { return volumePerPhase_; }
 double InjectorBridge::elapsedTime() const { return elapsedTime_; }
 double InjectorBridge::contrastRemaining() const { return contrastRemaining_; }
 double InjectorBridge::salineRemaining() const { return salineRemaining_; }
+bool InjectorBridge::contrastValve() const { return contrastValve_; }
+bool InjectorBridge::salineValve() const { return salineValve_; }
+double InjectorBridge::meanTickMs() const { return meanTickMs_; }
+double InjectorBridge::maxTickMs() const { return maxTickMs_; }
+int InjectorBridge::overrunCount() const { return overrunCount_; }
 QVariantList InjectorBridge::protocol() const { return protocol_; }
 QVariantList InjectorBridge::loadedProtocol() const { return loadedProtocol_; }
 QVariantList InjectorBridge::activeFaults() const { return activeFaults_; }
@@ -245,7 +250,12 @@ void InjectorBridge::onTelemetryFrame(const ::injector::TelemetryFrame& frame) {
         Q_ARG(double, frame.elapsed_time()),
         Q_ARG(double, frame.contrast_remaining()),
         Q_ARG(double, frame.saline_remaining()),
-        Q_ARG(QVariantList, vpp));
+        Q_ARG(QVariantList, vpp),
+        Q_ARG(bool, frame.contrast_valve()),
+        Q_ARG(bool, frame.saline_valve()),
+        Q_ARG(double, frame.mean_tick_ms()),
+        Q_ARG(double, frame.max_tick_ms()),
+        Q_ARG(int, static_cast<int>(frame.overrun_count())));
 }
 
 void InjectorBridge::onSystemEvent(const ::injector::SystemEvent& event) {
@@ -271,7 +281,10 @@ void InjectorBridge::handleTelemetry(
     double targetFlow, double actualFlow, double pres, double rpm,
     double totalVolDelivered, double totalVolProgrammed, double elapsed,
     double contrastRemain, double salineRemain,
-    const QVariantList& volumePerPhase)
+    const QVariantList& volumePerPhase,
+    bool contrastValve, bool salineValve,
+    double meanTickMs, double maxTickMs,
+    int overrunCount)
 {
     auto newState = stateToString(static_cast<::injector::InjectorState>(state));
     if (injectorState_ != newState) {
@@ -290,6 +303,11 @@ void InjectorBridge::handleTelemetry(
     contrastRemaining_ = contrastRemain;
     salineRemaining_ = salineRemain;
     volumePerPhase_ = volumePerPhase;
+    contrastValve_ = contrastValve;
+    salineValve_ = salineValve;
+    meanTickMs_ = meanTickMs;
+    maxTickMs_ = maxTickMs;
+    overrunCount_ = overrunCount;
 
     // Backend is authoritative for elapsed time (seconds since INJECTING
     // entry, frozen on PAUSED, 0 on IDLE/ARMED).
@@ -314,6 +332,8 @@ void InjectorBridge::handleTelemetry(
     historyEntry["motorRpm"] = rpm;
     historyEntry["phaseIndex"] = phaseIdx;
     historyEntry["state"] = newState;
+    historyEntry["contrastValve"] = contrastValve;
+    historyEntry["salineValve"] = salineValve;
 
     telemetryHistory_.append(historyEntry);
     if (telemetryHistory_.size() > kMaxHistoryFrames) {

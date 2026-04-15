@@ -33,6 +33,11 @@ class InjectorBridge : public QObject {
     Q_PROPERTY(double elapsedTime READ elapsedTime NOTIFY telemetryChanged)
     Q_PROPERTY(double contrastRemaining READ contrastRemaining NOTIFY telemetryChanged)
     Q_PROPERTY(double salineRemaining READ salineRemaining NOTIFY telemetryChanged)
+    Q_PROPERTY(bool contrastValve READ contrastValve NOTIFY telemetryChanged)
+    Q_PROPERTY(bool salineValve READ salineValve NOTIFY telemetryChanged)
+    Q_PROPERTY(double meanTickMs READ meanTickMs NOTIFY telemetryChanged)
+    Q_PROPERTY(double maxTickMs READ maxTickMs NOTIFY telemetryChanged)
+    Q_PROPERTY(int overrunCount READ overrunCount NOTIFY telemetryChanged)
 
     // Protocol (local editing state, pre-load)
     Q_PROPERTY(QVariantList protocol READ protocol NOTIFY protocolChanged)
@@ -65,6 +70,11 @@ public:
     double elapsedTime() const;
     double contrastRemaining() const;
     double salineRemaining() const;
+    bool contrastValve() const;
+    bool salineValve() const;
+    double meanTickMs() const;
+    double maxTickMs() const;
+    int overrunCount() const;
     QVariantList protocol() const;
     QVariantList loadedProtocol() const;
     QVariantList activeFaults() const;
@@ -119,7 +129,10 @@ private:
         double targetFlow, double actualFlow, double pressure, double motorRpm,
         double totalVolDelivered, double totalVolProgrammed, double elapsed,
         double contrastRemain, double salineRemain,
-        const QVariantList& volumePerPhase);
+        const QVariantList& volumePerPhase,
+        bool contrastValve, bool salineValve,
+        double meanTickMs, double maxTickMs,
+        int overrunCount);
     Q_INVOKABLE void handleEvent(double timestamp, int type, const QString& details);
 
     GrpcClientService* grpcClient_;
@@ -139,6 +152,11 @@ private:
     double elapsedTime_ = 0.0;
     double contrastRemaining_ = 0.0;
     double salineRemaining_ = 0.0;
+    bool contrastValve_ = false;
+    bool salineValve_ = false;
+    double meanTickMs_ = 0.0;
+    double maxTickMs_ = 0.0;
+    int overrunCount_ = 0;
     bool telemetryDirty_ = false;
 
     // ── Protocol editing state ──────────────────────────────────
