@@ -138,6 +138,10 @@ ApplicationWindow {
         id: aboutDialog
     }
 
+    Components.FaultReportDialog {
+        id: faultReportDialog
+    }
+
     // Main content area
     RowLayout {
         anchors.fill: parent
@@ -181,6 +185,7 @@ ApplicationWindow {
                 anchors.top: parent.top
                 height: controlPanel.height
                 z: 10
+                onReportRequested: faultReportDialog.open()
             }
         }
     }

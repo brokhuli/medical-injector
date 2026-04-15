@@ -370,6 +370,29 @@ void InjectorBridge::handleEvent(double timestamp, int type, const QString& deta
         QVariantMap faultInfo;
         faultInfo["details"] = details;
         faultInfo["timestamp"] = timestamp;
+
+        // Capture a snapshot of live telemetry at the moment the fault fires.
+        // The backend immediately halts the motor after detecting a fault, so
+        // reading live bridge values later would show post-stop state (pressure
+        // decayed, flow/rpm zeroed). These cached values are the last telemetry
+        // frame received before this fault event was processed on the UI thread.
+        QVariantMap snap;
+        snap["injectorState"]     = injectorState_;
+        snap["targetFlowRate"]    = targetFlowRate_;
+        snap["actualFlowRate"]    = actualFlowRate_;
+        snap["pressure"]          = pressure_;
+        snap["motorRpm"]          = motorRpm_;
+        snap["phaseIndex"]        = phaseIndex_;
+        snap["elapsedTime"]       = elapsedTime_;
+        snap["contrastRemaining"] = contrastRemaining_;
+        snap["salineRemaining"]   = salineRemaining_;
+        snap["contrastValve"]     = contrastValve_;
+        snap["salineValve"]       = salineValve_;
+        snap["meanTickMs"]        = meanTickMs_;
+        snap["maxTickMs"]         = maxTickMs_;
+        snap["overrunCount"]      = overrunCount_;
+        faultInfo["stateAtFault"] = snap;
+
         activeFaults_.append(faultInfo);
         emit faultsChanged();
     }

@@ -9,6 +9,8 @@ Rectangle {
     property var bridge: injectorBridge
     property bool acknowledged: false
 
+    signal reportRequested()
+
     readonly property bool hasFaults: bridge.activeFaults.length > 0
     readonly property bool isFaultState: bridge.injectorState === "Fault"
 
@@ -198,6 +200,32 @@ Rectangle {
                 }
 
                 onClicked: bridge.reset()
+            }
+
+            Button {
+                id: reportBtn
+                text: "Show Fault Report"
+                Layout.fillWidth: true
+                Layout.preferredHeight: 36
+
+                background: Rectangle {
+                    color: reportBtn.hovered ? Qt.rgba(1, 1, 1, 0.14)
+                                             : Qt.rgba(1, 1, 1, 0.08)
+                    radius: 6
+                    border.color: Qt.rgba(1, 1, 1, 0.18)
+                    border.width: 1
+                }
+
+                contentItem: Text {
+                    text: reportBtn.text
+                    color: App.Theme.text
+                    font.pixelSize: App.Theme.fontSizeSmall
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: root.reportRequested()
             }
         }
     }
