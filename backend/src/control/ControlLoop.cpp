@@ -394,7 +394,8 @@ void ControlLoop::run() {
                     frozenElapsedS = elapsedReport;
                     break;
                 case state::InjectorState::Paused:
-                    elapsedReport = frozenElapsedS;
+                    elapsedReport = snap.timestampS - injectionStartTimestampS;
+                    frozenElapsedS = elapsedReport;
                     break;
                 case state::InjectorState::Idle:
                 case state::InjectorState::Armed:

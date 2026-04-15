@@ -151,27 +151,36 @@ ApplicationWindow {
         }
 
         // Right panel: Control + Dashboard
-        ColumnLayout {
+        Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: App.Theme.spacingLarge
 
-            // Control panel with state indicator and buttons
-            Components.ControlPanel {
-                Layout.fillWidth: true
-                Layout.preferredHeight: implicitHeight
-                Layout.minimumHeight: 180
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: App.Theme.spacingLarge
+
+                // Control panel with state indicator and buttons
+                Components.ControlPanel {
+                    id: controlPanel
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: implicitHeight
+                    Layout.minimumHeight: 180
+                }
+
+                // Dashboard: gauges + timeline chart
+                Components.Dashboard {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                }
             }
 
-            // Fault detail (only visible when faults exist)
+            // Fault detail floats over the control panel — does not push Dashboard down
             Components.FaultDetail {
-                Layout.fillWidth: true
-            }
-
-            // Dashboard: gauges + timeline chart
-            Components.Dashboard {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: controlPanel.height
+                z: 10
             }
         }
     }

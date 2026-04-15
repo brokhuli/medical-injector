@@ -13,16 +13,43 @@ Rectangle {
     readonly property bool isFaultState: bridge.injectorState === "Fault"
 
     visible: isFaultState || hasFaults
-    color: Qt.rgba(App.Theme.fault.r, App.Theme.fault.g, App.Theme.fault.b, 0.15)
+    color: App.Theme.surface
     radius: 8
     border.color: App.Theme.fault
     border.width: 1
 
-    implicitHeight: visible ? col.implicitHeight + 2 * App.Theme.spacingLarge : 0
+    clip: true
 
     // Reset acknowledged state when faults clear
     onHasFaultsChanged: {
         if (!hasFaults) acknowledged = false
+    }
+
+    function formatFaultDetails(raw) {
+        if (!raw) return "Unknown fault"
+        var d
+        try { d = JSON.parse(raw) } catch(e) { return raw }
+        var ft  = d.fault_type  || ""
+        var val = (d.value     !== undefined) ? d.value     : null
+        var thr = (d.threshold !== undefined) ? d.threshold : null
+        switch (ft) {
+            case "OVERPRESSURE":
+                return "Overpressure \u2014 " +
+                       (val !== null ? val.toFixed(1) : "?") + " psi exceeded limit of " +
+                       (thr !== null ? thr.toFixed(0) : "?") + " psi"
+            case "AIR_BUBBLE":
+                return "Air bubble detected in fluid line \u2014 injection halted"
+            case "MOTOR_STALL":
+                return "Motor stall \u2014 RPM divergence " +
+                       (val !== null ? val.toFixed(0) : "?") + " RPM" +
+                       (thr !== null ? " (threshold: " + thr.toFixed(0) + " RPM)" : "")
+            case "TIMING_DELAY":
+                return "Control loop overrun \u2014 " +
+                       (val !== null ? val.toFixed(1) : "?") + " ms" +
+                       (thr !== null ? " (limit: " + thr.toFixed(0) + " ms)" : "")
+            default:
+                return ft ? ft.replace(/_/g, " ") : raw
+        }
     }
 
     ColumnLayout {
@@ -74,7 +101,7 @@ Rectangle {
                 }
 
                 Text {
-                    text: modelData.details || "Unknown fault"
+                    text: root.formatFaultDetails(modelData.details || "")
                     color: App.Theme.text
                     font.pixelSize: App.Theme.fontSizeSmall
                     wrapMode: Text.WordWrap
@@ -91,6 +118,27 @@ Rectangle {
                     color: App.Theme.textSecondary
                     font.pixelSize: App.Theme.fontSizeSmall
                 }
+            }
+        }
+
+        // Fallback when fault state has no specific fault events (e.g. manual emergency stop)
+        RowLayout {
+            visible: root.isFaultState && !root.hasFaults
+            Layout.fillWidth: true
+            spacing: App.Theme.spacingSmall
+
+            Text {
+                text: "\u2022"
+                color: App.Theme.fault
+                font.pixelSize: App.Theme.fontSizeMedium
+            }
+
+            Text {
+                text: "Emergency stop activated \u2014 injection halted by operator"
+                color: App.Theme.text
+                font.pixelSize: App.Theme.fontSizeSmall
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
             }
         }
 

@@ -19,12 +19,12 @@ Rectangle {
     property bool _wasInjecting: false
 
     on_StateChanged: {
-        if (_state === "Injecting") {
+        if (_state === "Injecting" || _state === "Paused") {
             _wasInjecting = true
             stopDelayTimer.stop()
             repaintTimer.running = true
         } else if (_wasInjecting) {
-            // State left Injecting — start 2s countdown to freeze
+            // State left active — start 2s countdown to freeze
             stopDelayTimer.restart()
         }
     }

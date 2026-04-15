@@ -1,5 +1,7 @@
 #include "InjectorBridge.h"
 #include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMetaObject>
 #include <QThreadPool>
 
@@ -372,11 +374,15 @@ void InjectorBridge::handleEvent(double timestamp, int type, const QString& deta
         emit faultsChanged();
     }
 
-    // Clear faults on state transition away from Fault state
+    // Clear faults when transitioning TO a non-Fault state
     if (type == static_cast<int>(::injector::STATE_TRANSITION)) {
-        if (!activeFaults_.isEmpty() && !details.contains("Fault", Qt::CaseInsensitive)) {
-            activeFaults_.clear();
-            emit faultsChanged();
+        if (!activeFaults_.isEmpty()) {
+            QJsonDocument doc = QJsonDocument::fromJson(details.toUtf8());
+            QString toState = doc.object().value("to").toString();
+            if (!toState.isEmpty() && toState != QStringLiteral("Fault")) {
+                activeFaults_.clear();
+                emit faultsChanged();
+            }
         }
     }
 }
