@@ -47,3 +47,6 @@ vcpkg_installed/
 
 # Sandbox
 sandbox/
+
+# Research (ignore subdirectory)
+research/ignore/
