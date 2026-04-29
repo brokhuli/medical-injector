@@ -393,6 +393,19 @@ void InjectorBridge::handleEvent(double timestamp, int type, const QString& deta
         snap["overrunCount"]      = overrunCount_;
         faultInfo["stateAtFault"] = snap;
 
+        // Freeze the last ~100 telemetry frames *before* the fault. The backend
+        // halts the motor immediately on fault, so frames received after this
+        // event would be post-stop zeros and bury the pre-fault context.
+        constexpr int kFaultHistoryFrames = 100;
+        const int historySize = telemetryHistory_.size();
+        const int historyStart = std::max(0, historySize - kFaultHistoryFrames);
+        QVariantList historySnap;
+        historySnap.reserve(historySize - historyStart);
+        for (int i = historyStart; i < historySize; ++i) {
+            historySnap.append(telemetryHistory_[i]);
+        }
+        faultInfo["historyAtFault"] = historySnap;
+
         activeFaults_.append(faultInfo);
         emit faultsChanged();
     }

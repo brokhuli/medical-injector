@@ -31,9 +31,11 @@ Dialog {
         // (the backend halts the motor immediately, so live values lie).
         // Fall back to live values only if no fault has a snapshot yet.
         var faultSnap = null
+        var historySnap = null
         for (var i = 0; i < faultsSnapshot.length; ++i) {
             if (faultsSnapshot[i].stateAtFault) {
                 faultSnap = faultsSnapshot[i].stateAtFault
+                historySnap = faultsSnapshot[i].historyAtFault || null
                 break
             }
         }
@@ -59,9 +61,13 @@ Dialog {
             }
         }
 
-        var hist = bridge.telemetryHistory
-        var histStart = Math.max(0, hist.length - maxTelemetryRows)
-        telemetrySnapshot = hist.slice(histStart)
+        if (historySnap && historySnap.length > 0) {
+            telemetrySnapshot = historySnap
+        } else {
+            const hist = bridge.telemetryHistory
+            const histStart = Math.max(0, hist.length - maxTelemetryRows)
+            telemetrySnapshot = hist.slice(histStart)
+        }
 
         var ev = bridge.eventLog
         var evStart = Math.max(0, ev.length - maxEventRows)
