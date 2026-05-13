@@ -1,0 +1,185 @@
+---
+title: "Medical Injector v2"
+tagline: "A deterministic, real-time contrast-injection controller with safety monitoring, and clinical workflow."
+status: "shipped"
+featured: true
+cataloged: true
+order: 20
+tech:
+  - "C++"
+  - "Qt/QML"
+  - "gRPC"
+  - "HIL interfaces"
+  - "unit testing"
+repo:
+  url: "https://github.com/brokhuli/medical-injector"
+  entryPoints:
+    - label: "System architecture"
+      path: "readme/architecture-summary.md"
+    - label: "Architectural decisions"
+      path: "readme/architectural-decision-record.md"
+    - label: "gRPC command, telemetry, and event contract"
+      path: "proto/injector.proto"
+    - label: "Real-time PID control loop"
+      path: "backend/src/control/ControlLoop.cpp"
+    - label: "Independent safety monitor"
+      path: "backend/src/safety/SafetyMonitor.cpp"
+    - label: "Injection state machine and protocol progression"
+      path: "backend/src/state/StateMachine.cpp"
+    - label: "Simulated hardware devices and physics models"
+      path: "backend/src/hal/SimulatedHal.cpp"
+media:
+  src: "../../assets/img/medical-injector-injection.gif"
+  alt: >-
+    Animated UI showing a real-time injection sequence with pressure and flow
+    telemetry.
+  kind: "gif"
+  caption: >-
+    Live injection sequence with pressure, flow, volume, valve state, and
+    control-loop health rendered in real time.
+  aspect: "16:9"
+publishedAt: "2026-04-01"
+---
+
+## Problem
+
+Medical contrast injectors are safety-critical systems whose control logic,
+fault handling, and operator workflows are sometimes locked inside proprietary
+hardware. That makes them hard to demonstrate, test, or reason about without
+access to specialized equipment.
+
+I built a software control system with simulated hardware devices, so those behaviors
+are visible without needing a physical injector. Users can:
+
+- configure multi-phase contrast/saline protocols
+- run protocols through a real-time control loop
+- observe live telemetry as the simulated hardware devices respond
+- trigger faults without physical injector hardware or clinical risk
+
+<img
+  src="../research/ignore/medical-injector-protocol-config.gif"
+  alt="Protocol configuration UI showing contrast and saline phase setup."
+  width="640"
+  style={{ maxWidth: "100%", height: "auto" }}
+/>
+
+_Protocol setup for a multi-phase contrast/saline injection._
+
+## Complexity
+
+### Real-Time Simulated Hardware Devices
+
+The project had to feel like a real device without being connected to one. A
+configurable C++ PID control loop targets a 2 ms cadence while driving
+simulated motor, valve, syringe, pressure, and air-detection devices. An
+independent safety monitor targets a 1 ms cadence while watching for
+overpressure, air, motor divergence, and timing faults.
+
+| System concern           | Implementation choice                                      |
+| ------------------------ | ---------------------------------------------------------- |
+| Control timing           | Configurable C++ PID loop targeting a 2 ms cadence         |
+| Safety timing            | Independent monitor targeting a 1 ms cadence               |
+| Simulated hardware layer | Motor, valve, syringe, pressure, and air-detection devices |
+| Operator feedback        | Live gauges, charts, event logs, and fault reports         |
+
+### Live Operator Feedback
+
+The Qt/QML frontend streams backend-owned state over gRPC, so the dashboard
+reflects the actual backend state rather than a scripted UI. During a run, the
+operator can see pressure, flow, volume, valve state, and loop health change as
+the backend advances the protocol.
+
+![Live injection UI showing pressure, flow, volume, and device state changing during a run.](../research/ignore/medical-injector-injection.gif)
+
+_Live injection sequence rendered from backend telemetry._
+
+### Observability
+
+Faults are exposed as first-class system events rather than hidden side
+effects. When the safety monitor detects a problem, the backend emergency-stops
+the simulated hardware devices, publishes a structured fault event, and keeps
+the operator view aligned with the control system state.
+
+![Fault observability UI showing a fault report, event log, and live system telemetry.](../research/ignore/medical-injector-fault-observability.gif)
+
+_Fault injection and observability path from simulated hardware state to operator-facing report._
+
+## Architectural Design
+
+### Process Boundary
+
+I split the system into a C++ backend and a Qt6/QML frontend connected by a
+protobuf-defined gRPC contract. The process boundary keeps the UI out of the
+real-time path while still giving operators a live, inspectable view of the
+system.
+
+### Backend Layers
+
+The backend is organized around small, testable layers:
+
+- hardware abstraction
+- deterministic physics models
+- configuration loading and validation
+- PID control
+- non-blocking telemetry logging
+- state-machine orchestration
+- independent safety monitoring
+- command, telemetry, event, and fault streaming
+
+## Architectural Tradeoffs
+
+### Native Control Stack Over Web-First Tools
+
+I chose C++, gRPC, and Qt/QML because the project needed to behave like
+instrument control software, not a conventional web app. The tradeoff was more
+systems-level complexity in exchange for tighter control over timing,
+threading, process isolation, and telemetry flow.
+
+| Choice          | Why it fit                                                                                                               | Tradeoff                                                                                                |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| C++             | Direct thread control, predictable performance, no garbage collector, and a natural fit for instrument-control software. | Requires more discipline around memory, concurrency, and undefined behavior than managed languages.     |
+| gRPC + protobuf | Strongly typed command/telemetry contracts, efficient server streaming, and a clean frontend/backend process boundary.   | More setup than REST or WebSockets, especially around code generation and streaming clients.            |
+| Qt/QML          | Native desktop UI, reactive bindings for live telemetry, and a realistic embedded-device UI path.                        | Less ubiquitous than web frameworks and requires a Qt-specific bridge between QML and backend services. |
+
+I considered higher-level stacks like Python, Go, C#, Electron, and browser
+frameworks, but they either introduced garbage collection, weaker timing
+control, browser/proxy deployment overhead, or a less realistic fit for a
+medical-device-style operator interface.
+
+### Deterministic Hardware Behavior
+
+I favored deterministic, explainable physics over maximum biomedical fidelity so
+the same protocol produces the same pressure/flow trace every time. That made
+the control software more useful as an engineering case study: simulated
+hardware behavior can be replayed, inspected, and tested without random noise
+hiding the control logic.
+
+### Isolation Over Simplicity
+
+I chose gRPC and a process boundary over a simpler in-process UI because it
+mirrors production control architectures and makes failure isolation more
+explicit. The UI can observe and command the backend, but it does not own the
+timing-sensitive state.
+
+### Backpressure-Aware Telemetry
+
+I used bounded queues, telemetry coalescing, and ring-buffer logging so charts,
+exports, or slow clients cannot block the timing-sensitive control loop.
+
+## Outcome
+
+The finished control software turns a closed medical-device domain into an
+inspectable system. A reviewer can trace a command from UI action to
+backend state transition, control-loop response, simulated hardware behavior,
+safety intervention, and live dashboard feedback.
+
+It supports:
+
+- complete multi-phase injection runs
+- live pressure, flow, volume, and timing telemetry
+- pause, resume, reset, and emergency-stop workflows
+- realistic fault injection
+- fault reports and operator-facing event logs
+- run-data export
+- tests across simulated hardware devices, state transitions, timing behavior,
+  safety paths, and gRPC integration
